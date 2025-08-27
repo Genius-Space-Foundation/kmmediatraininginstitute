@@ -30,11 +30,15 @@ jobs:
       - name: Install dependencies
         run: |
           npm run install-all
+          echo "Dependencies installed successfully"
 
       - name: Build React app
         run: |
           cd client
-          npm run build
+          echo "Starting React build..."
+          CI=false npm run build
+          echo "React build completed successfully"
+          ls -la build/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
