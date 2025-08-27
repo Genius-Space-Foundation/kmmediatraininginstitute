@@ -161,7 +161,7 @@ const AdminTrainers: React.FC = () => {
   };
 
   const handleDeleteTrainer = async (trainerId: number) => {
-    if (!confirm("Are you sure you want to delete this trainer?")) return;
+    if (!window.confirm("Are you sure you want to delete this trainer?")) return;
 
     try {
       await api.delete(`/trainers/admin/${trainerId}`);
