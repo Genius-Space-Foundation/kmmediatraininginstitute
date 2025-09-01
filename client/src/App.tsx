@@ -24,6 +24,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AdminCourses from "./pages/AdminCourses";
 import AdminAddCourse from "./pages/AdminAddCourse";
 import AdminRegistrations from "./pages/AdminRegistrations";
+import AdminPayments from "./pages/AdminPayments";
 import AdminStories from "./pages/AdminStories";
 import AdminAddStory from "./pages/AdminAddStory";
 import AdminTrainers from "./pages/AdminTrainers";
@@ -182,6 +183,14 @@ function AppContent() {
             element={
               <AdminRoute>
                 <AdminRegistrations />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/payments"
+            element={
+              <AdminRoute>
+                <AdminPayments />
               </AdminRoute>
             }
           />

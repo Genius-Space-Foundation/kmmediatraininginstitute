@@ -1,6 +1,8 @@
 import { Router, Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import { pool } from "../database/database";
+import { authenticateToken, requireUser } from "../middleware/auth";
+import { AuthRequest } from "../types";
 
 const router = Router();
 
@@ -13,6 +15,38 @@ const registrationValidation = [
     .isLength({ max: 500 })
     .withMessage("Notes must be less than 500 characters"),
 ];
+
+// Check if user has applied for a specific course
+router.get(
+  "/check/:courseId",
+  authenticateToken,
+  requireUser,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const courseId = req.params.courseId;
+
+      const client = await pool.connect();
+      try {
+        const query = `SELECT id FROM registrations WHERE "userId" = $1 AND "courseId" = $2`;
+        const result = await client.query(query, [userId, courseId]);
+
+        res.json({
+          success: true,
+          data: { hasApplied: result.rows.length > 0 },
+        });
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error("Error checking application status:", error);
+      res.status(500).json({
+        success: false,
+        message: "Database error",
+      });
+    }
+  }
+);
 
 // Get all registrations (admin only)
 router.get("/admin/all", async (req: Request, res: Response) => {

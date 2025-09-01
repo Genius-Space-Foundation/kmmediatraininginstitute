@@ -116,7 +116,7 @@ export interface RegistrationRequest {
   certificateObtained?: string;
 }
 
-// Payment-related interfaces
+// Enhanced Payment-related interfaces
 export interface PaymentRequest {
   courseId: number;
   amount: number;
@@ -125,7 +125,20 @@ export interface PaymentRequest {
   lastName: string;
   phone: string;
   callbackUrl: string;
+  paymentType: "application_fee" | "course_fee" | "installment";
+  installmentNumber?: number;
+  totalInstallments?: number;
+  installmentAmount?: number;
+  remainingBalance?: number;
   metadata?: Record<string, any>;
+}
+
+export interface CourseFeeInstallmentRequest {
+  courseId: number;
+  totalCourseFee: number;
+  totalInstallments: number;
+  paymentPlan: "weekly" | "monthly" | "quarterly";
+  installmentAmount: number;
 }
 
 export interface PaymentResponse {
@@ -163,10 +176,33 @@ export interface PaymentRecord {
   reference: string;
   amount: number;
   currency: string;
-  status: "pending" | "success" | "failed";
+  paymentType: "application_fee" | "course_fee" | "installment";
+  status: "pending" | "success" | "failed" | "cancelled";
   paymentMethod: string;
+  installmentNumber?: number;
+  totalInstallments?: number;
+  installmentAmount?: number;
+  remainingBalance?: number;
   metadata?: Record<string, any>;
   paidAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CourseFeeInstallment {
+  id: number;
+  userId: number;
+  courseId: number;
+  totalCourseFee: number;
+  applicationFeePaid: boolean;
+  applicationFeeReference?: string;
+  totalInstallments: number;
+  installmentAmount: number;
+  paidInstallments: number;
+  remainingBalance: number;
+  nextDueDate?: string;
+  paymentPlan: "weekly" | "monthly" | "quarterly";
+  status: "active" | "completed" | "defaulted" | "cancelled";
   createdAt: string;
   updatedAt: string;
 }
@@ -283,7 +319,7 @@ export interface CourseMaterial {
   courseId: number;
   title: string;
   description?: string;
-  type: 'document' | 'video' | 'link' | 'file';
+  type: "document" | "video" | "link" | "file";
   fileUrl?: string;
   fileName?: string;
   fileSize?: number;
@@ -297,7 +333,7 @@ export interface CourseMaterial {
 export interface CourseMaterialRequest {
   title: string;
   description?: string;
-  type: 'document' | 'video' | 'link' | 'file';
+  type: "document" | "video" | "link" | "file";
   fileUrl?: string;
   fileName?: string;
   fileSize?: number;
@@ -357,7 +393,7 @@ export interface QuizQuestion {
   id: number;
   quizId: number;
   question: string;
-  questionType: 'multiple_choice' | 'true_false' | 'short_answer';
+  questionType: "multiple_choice" | "true_false" | "short_answer";
   options?: string[]; // for multiple choice questions
   correctAnswer: string;
   points: number;
@@ -368,7 +404,7 @@ export interface QuizQuestion {
 
 export interface QuizQuestionRequest {
   question: string;
-  questionType: 'multiple_choice' | 'true_false' | 'short_answer';
+  questionType: "multiple_choice" | "true_false" | "short_answer";
   options?: string[];
   correctAnswer: string;
   points?: number;
@@ -387,7 +423,7 @@ export interface AssignmentSubmission {
   gradedAt?: string;
   score?: number;
   feedback?: string;
-  status: 'submitted' | 'graded' | 'late';
+  status: "submitted" | "graded" | "late";
   createdAt: string;
   updatedAt: string;
 }
@@ -407,7 +443,7 @@ export interface QuizAttempt {
   completedAt?: string;
   score?: number;
   answers?: Record<string, any>; // stores student answers
-  status: 'in_progress' | 'completed' | 'abandoned';
+  status: "in_progress" | "completed" | "abandoned";
   createdAt: string;
   updatedAt: string;
 }
@@ -424,7 +460,7 @@ export interface StudentProgress {
   materialId?: number;
   assignmentId?: number;
   quizId?: number;
-  status: 'not_started' | 'in_progress' | 'completed';
+  status: "not_started" | "in_progress" | "completed";
   completedAt?: string;
   timeSpent?: number; // in minutes
   createdAt: string;
@@ -432,7 +468,7 @@ export interface StudentProgress {
 }
 
 export interface StudentProgressRequest {
-  status: 'not_started' | 'in_progress' | 'completed';
+  status: "not_started" | "in_progress" | "completed";
   timeSpent?: number;
 }
 

@@ -20,6 +20,7 @@ import {
   Menu,
   X,
   UserPlus,
+  CreditCard,
 } from "lucide-react";
 
 interface AdminLayoutProps {
@@ -52,6 +53,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       href: "/admin/registrations",
       icon: FileText,
       current: location.pathname.startsWith("/admin/registrations"),
+    },
+    {
+      name: "Payments",
+      href: "/admin/payments",
+      icon: CreditCard,
+      current: location.pathname.startsWith("/admin/payments"),
     },
     {
       name: "Trainers",

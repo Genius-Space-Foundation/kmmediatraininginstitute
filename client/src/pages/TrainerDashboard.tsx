@@ -122,6 +122,8 @@ interface Assignment {
   lateCount: number;
   missingCount: number;
   createdAt: string;
+  courseName: string;
+  courseId: number;
 }
 
 interface Quiz {
@@ -162,6 +164,8 @@ interface StudentSubmission {
   assignmentTitle: string;
   dueDate: string;
   maxScore: number;
+  courseName: string;
+  courseId: number;
 }
 
 const TrainerDashboard: React.FC = () => {
@@ -191,37 +195,58 @@ const TrainerDashboard: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    if (!user || user.role !== "trainer") {
-      navigate("/login");
-      return;
+    // Only fetch data if user is authenticated
+    if (user) {
+      fetchDashboardData();
     }
-    fetchDashboardData();
-  }, [user, navigate]);
+  }, [user]);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [profileRes, coursesRes, studentsRes, statsRes] = await Promise.all(
-        [
-          api.get("/trainers/profile"),
-          api.get("/trainers/courses"),
-          api.get("/trainers/students"),
-          api.get("/trainers/dashboard"),
-        ]
-      );
+      const [
+        profileRes,
+        coursesRes,
+        studentsRes,
+        statsRes,
+        assignmentsRes,
+        quizzesRes,
+        submissionsRes,
+        materialsRes,
+      ] = await Promise.all([
+        api.get("/trainers/profile"),
+        api.get("/trainers/courses"),
+        api.get("/trainers/students"),
+        api.get("/trainers/dashboard"),
+        api.get("/trainers/assignments"),
+        api.get("/trainers/quizzes"),
+        api.get("/trainers/submissions"),
+        api.get("/trainers/materials"),
+      ]);
 
       setProfile(profileRes.data.profile || {});
       setCourses(coursesRes.data.courses || []);
       setStudents(studentsRes.data.students || []);
       setStats(statsRes.data.stats || {});
+      setAssignments(assignmentsRes.data.assignments || []);
+      setQuizzes(quizzesRes.data.quizzes || []);
+      setSubmissions(submissionsRes.data.submissions || []);
+      setMaterials(materialsRes.data.materials || []);
       setLastUpdated(new Date());
       // Only show success toast for manual refresh, not auto-refresh
       if (refreshing) {
         toast.success("Dashboard data updated successfully");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching dashboard data:", error);
-      toast.error("Failed to load dashboard data");
+      const errorMessage =
+        error.response?.data?.message || "Failed to load dashboard data";
+      toast.error(errorMessage);
+
+      // If unauthorized, redirect to login
+      if (error.response?.status === 401) {
+        navigate("/login");
+      }
     } finally {
       setLoading(false);
     }
@@ -237,23 +262,54 @@ const TrainerDashboard: React.FC = () => {
     }
   };
 
-  // Refresh data when tab changes
+  // Refresh data when tab changes - removed to prevent excessive API calls
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId);
-    // Refresh data when switching to different tabs
-    if (tabId === "dashboard" || tabId === "courses" || tabId === "students") {
-      fetchDashboardData();
-    }
+    // Don't automatically refresh on tab change to prevent rate limiting
   };
 
-  // Auto-refresh data every 30 seconds
+  // Auto-refresh data every 60 seconds (increased from 30 to reduce rate limiting)
   useEffect(() => {
+    if (!user) return; // Don't start interval if user is not authenticated
+
     const interval = setInterval(() => {
       fetchDashboardData();
-    }, 30000); // 30 seconds
+    }, 60000); // 60 seconds
 
     return () => clearInterval(interval);
-  }, []);
+  }, [user]);
+
+  // Auto-refresh assignments and submissions every 30 seconds when their tabs are active
+  useEffect(() => {
+    if (!user || (activeTab !== "assignments" && activeTab !== "submissions"))
+      return;
+
+    const interval = setInterval(() => {
+      // Only refresh specific data when on relevant tabs
+      if (activeTab === "assignments") {
+        api
+          .get("/trainers/assignments")
+          .then((response) => {
+            setAssignments(response.data.assignments || []);
+          })
+          .catch((error) => {
+            console.error("Error refreshing assignments:", error);
+          });
+      }
+      if (activeTab === "submissions") {
+        api
+          .get("/trainers/submissions")
+          .then((response) => {
+            setSubmissions(response.data.submissions || []);
+          })
+          .catch((error) => {
+            console.error("Error refreshing submissions:", error);
+          });
+      }
+    }, 30000); // 30 seconds for specific tabs
+
+    return () => clearInterval(interval);
+  }, [activeTab, user]);
 
   // Refresh data when component becomes visible
   useEffect(() => {

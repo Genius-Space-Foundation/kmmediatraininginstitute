@@ -1,4 +1,5 @@
 import React from "react";
+import Logo from "./Logo";
 
 const navLinks = [
   { name: "Home", href: "/" },
@@ -18,12 +19,9 @@ const Footer: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 md:grid-cols-4 gap-8 items-start">
         {/* Branding */}
         <div className="md:col-span-1 flex flex-col gap-2 items-start">
-          <img
-            src="/images/logo.jpeg"
-            alt="KM Media Logo"
-            className="h-16 w-16 object-contain rounded-full shadow mb-2"
-            style={{ background: '#fff' }}
-          />
+          <div className="h-16 w-16 mb-2">
+            <Logo size="lg" showText={false} />
+          </div>
           <span className="font-extrabold text-2xl text-primary tracking-tight">
             KM Media Training Institute
           </span>

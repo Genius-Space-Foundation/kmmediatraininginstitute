@@ -1802,4 +1802,164 @@ router.get(
   }
 );
 
+// Get all assignments for trainer (trainer only)
+router.get(
+  "/assignments",
+  authenticateToken,
+  requireTrainer,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const trainerId = req.user!.id;
+      const client = await pool.connect();
+
+      const result = await client.query(
+        `
+        SELECT a.*, 
+               c.name as "courseName",
+               COUNT(s.id) as "submissionCount",
+               COUNT(CASE WHEN s.status = 'submitted' THEN 1 END) as "submittedCount",
+               COUNT(CASE WHEN s.status = 'late' THEN 1 END) as "lateCount",
+               COUNT(CASE WHEN s.status = 'missing' THEN 1 END) as "missingCount"
+        FROM assignments a
+        JOIN courses c ON a."courseId" = c.id
+        LEFT JOIN student_submissions s ON a.id = s."assignmentId"
+        WHERE c."instructorId" = $1
+        GROUP BY a.id, c.name
+        ORDER BY a."dueDate" ASC
+        `,
+        [trainerId]
+      );
+
+      client.release();
+
+      res.json({
+        success: true,
+        assignments: result.rows,
+      });
+    } catch (error) {
+      logger.error("Error fetching assignments:", error);
+      res.status(500).json({
+        success: false,
+        message: "Database error",
+      });
+    }
+  }
+);
+
+// Get all submissions for trainer (trainer only)
+router.get(
+  "/submissions",
+  authenticateToken,
+  requireTrainer,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const trainerId = req.user!.id;
+      const client = await pool.connect();
+
+      const result = await client.query(
+        `
+        SELECT s.*, 
+               u."firstName", u."lastName", u.email,
+               a.title as "assignmentTitle", a."dueDate", a."maxScore",
+               c.name as "courseName", c.id as "courseId"
+        FROM student_submissions s
+        JOIN users u ON s."studentId" = u.id
+        JOIN assignments a ON s."assignmentId" = a.id
+        JOIN courses c ON a."courseId" = c.id
+        WHERE c."instructorId" = $1
+        ORDER BY s."submissionDate" DESC
+        `,
+        [trainerId]
+      );
+
+      client.release();
+
+      res.json({
+        success: true,
+        submissions: result.rows,
+      });
+    } catch (error) {
+      logger.error("Error fetching submissions:", error);
+      res.status(500).json({
+        success: false,
+        message: "Database error",
+      });
+    }
+  }
+);
+
+// Get all quizzes for trainer (trainer only)
+router.get(
+  "/quizzes",
+  authenticateToken,
+  requireTrainer,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const trainerId = req.user!.id;
+      const client = await pool.connect();
+
+      const result = await client.query(
+        `
+        SELECT q.*, c.name as "courseName"
+        FROM quizzes q
+        JOIN courses c ON q."courseId" = c.id
+        WHERE c."instructorId" = $1
+        ORDER BY q."createdAt" DESC
+        `,
+        [trainerId]
+      );
+
+      client.release();
+
+      res.json({
+        success: true,
+        quizzes: result.rows,
+      });
+    } catch (error) {
+      logger.error("Error fetching quizzes:", error);
+      res.status(500).json({
+        success: false,
+        message: "Database error",
+      });
+    }
+  }
+);
+
+// Get all materials for trainer (trainer only)
+router.get(
+  "/materials",
+  authenticateToken,
+  requireTrainer,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const trainerId = req.user!.id;
+      const client = await pool.connect();
+
+      const result = await client.query(
+        `
+        SELECT m.*, c.name as "courseName"
+        FROM course_materials m
+        JOIN courses c ON m."courseId" = c.id
+        WHERE c."instructorId" = $1
+        ORDER BY m."createdAt" DESC
+        `,
+        [trainerId]
+      );
+
+      client.release();
+
+      res.json({
+        success: true,
+        materials: result.rows,
+      });
+    } catch (error) {
+      logger.error("Error fetching materials:", error);
+      res.status(500).json({
+        success: false,
+        message: "Database error",
+      });
+    }
+  }
+);
+
 export default router;

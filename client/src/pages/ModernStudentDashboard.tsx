@@ -1,20 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../utils/api";
 import toast from "react-hot-toast";
 import { Link } from "react-router-dom";
 import {
   BookOpen,
-  Clock,
   TrendingUp,
   User,
   FileText,
   CreditCard,
   Bell,
-  CheckCircle,
   X,
-  AlertTriangle,
-  Info,
   LogOut,
   Menu,
   Filter,
@@ -47,6 +43,23 @@ interface Payment {
   status: string;
   createdAt: string;
   reference: string;
+  paymentType: "application_fee" | "course_fee" | "installment";
+  installmentNumber?: number;
+  totalInstallments?: number;
+  remainingBalance?: number;
+}
+
+interface InstallmentPlan {
+  id: number;
+  courseName: string;
+  totalCourseFee: number;
+  totalInstallments: number;
+  installmentAmount: number;
+  paidInstallments: number;
+  remainingBalance: number;
+  nextDueDate?: string;
+  paymentPlan: "weekly" | "monthly" | "quarterly";
+  status: "active" | "completed" | "defaulted" | "cancelled";
 }
 
 interface DashboardStats {
@@ -71,6 +84,7 @@ interface ProfileData {
 const ModernStudentDashboard: React.FC = () => {
   const { user, logout, refreshUser } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
+  const [paymentSubTab, setPaymentSubTab] = useState("payments");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -82,6 +96,9 @@ const ModernStudentDashboard: React.FC = () => {
   // Real data state
   const [courses, setCourses] = useState<Course[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [installmentPlans, setInstallmentPlans] = useState<InstallmentPlan[]>(
+    []
+  );
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [profileData, setProfileData] = useState<ProfileData>({
     firstName: user?.firstName || "",
@@ -101,8 +118,8 @@ const ModernStudentDashboard: React.FC = () => {
     }
   }, [user]);
 
-  // Fetch dashboard data
-  const fetchDashboardData = async () => {
+  // Fetch dashboard data with retry logic
+  const fetchDashboardData = useCallback(async (retryCount = 0) => {
     try {
       setLoading(true);
 
@@ -113,6 +130,19 @@ const ModernStudentDashboard: React.FC = () => {
       setStats(overviewData.stats);
       setCourses(overviewData.recentRegistrations);
       setPayments(overviewData.recentPayments);
+
+      // Fetch installment plans
+      try {
+        const installmentPlansResponse = await api.get(
+          "/payments/installment-plans"
+        );
+        setInstallmentPlans(
+          installmentPlansResponse.data.data.installmentPlans
+        );
+      } catch (error) {
+        console.log("No installment plans found or error fetching plans");
+        setInstallmentPlans([]);
+      }
 
       // Fetch profile data
       const profileResponse = await api.get("/students/profile");
@@ -135,11 +165,35 @@ const ModernStudentDashboard: React.FC = () => {
       }
     } catch (error: any) {
       console.error("Error fetching dashboard data:", error);
-      toast.error("Failed to load dashboard data");
+
+      // Handle rate limiting with retry logic
+      if (error.response?.status === 429 && retryCount < 2) {
+        const retryAfter = error.response.headers["retry-after"];
+        const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 5000; // Default 5 seconds
+
+        toast.error(
+          `Rate limited. Retrying in ${Math.ceil(waitTime / 1000)} seconds...`
+        );
+
+        setTimeout(() => {
+          fetchDashboardData(retryCount + 1);
+        }, waitTime);
+        return;
+      } else if (error.response?.status === 429) {
+        const retryAfter = error.response.headers["retry-after"];
+        const message = retryAfter
+          ? `Dashboard data temporarily unavailable. Please wait ${retryAfter} seconds before refreshing.`
+          : "Dashboard data temporarily unavailable. Please wait a moment before refreshing.";
+        toast.error(message);
+      } else {
+        const errorMessage =
+          error.response?.data?.message || "Failed to load dashboard data";
+        toast.error(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchDashboardData();
@@ -982,73 +1036,235 @@ const ModernStudentDashboard: React.FC = () => {
             {/* Payments Tab */}
             {activeTab === "payments" && (
               <div className="space-y-6">
-                <h3 className="text-2xl font-semibold text-gray-900">
-                  Payment History
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-2xl font-semibold text-gray-900">
+                    Payment Management
+                  </h3>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => setPaymentSubTab("payments")}
+                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                        paymentSubTab === "payments"
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      Payment History
+                    </button>
+                    <button
+                      onClick={() => setPaymentSubTab("installments")}
+                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                        paymentSubTab === "installments"
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      Installment Plans
+                    </button>
+                  </div>
+                </div>
 
-                <div className="space-y-4">
-                  {payments.length > 0 ? (
-                    payments.map((payment) => (
-                      <div
-                        key={payment.id}
-                        className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/20 p-6"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4">
-                            <div className="p-3 bg-green-100 rounded-xl">
-                              <CreditCard className="h-6 w-6 text-green-600" />
+                {/* Payment History Section */}
+                {paymentSubTab === "payments" && (
+                  <div className="space-y-4">
+                    {payments.length > 0 ? (
+                      payments.map((payment) => (
+                        <div
+                          key={payment.id}
+                          className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/20 p-6"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                              <div
+                                className={`p-3 rounded-xl ${
+                                  payment.paymentType === "application_fee"
+                                    ? "bg-blue-100"
+                                    : payment.paymentType === "installment"
+                                    ? "bg-green-100"
+                                    : "bg-purple-100"
+                                }`}
+                              >
+                                <CreditCard
+                                  className={`h-6 w-6 ${
+                                    payment.paymentType === "application_fee"
+                                      ? "text-blue-600"
+                                      : payment.paymentType === "installment"
+                                      ? "text-green-600"
+                                      : "text-purple-600"
+                                  }`}
+                                />
+                              </div>
+                              <div>
+                                <h4 className="text-lg font-semibold text-gray-900">
+                                  {payment.courseName}
+                                </h4>
+                                <p className="text-sm text-gray-600">
+                                  {payment.paymentType === "application_fee"
+                                    ? "Application Fee"
+                                    : payment.paymentType === "installment"
+                                    ? `Installment ${payment.installmentNumber}/${payment.totalInstallments}`
+                                    : "Course Fee"}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  Reference: {payment.reference}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  Date:{" "}
+                                  {new Date(
+                                    payment.createdAt
+                                  ).toLocaleDateString()}
+                                </p>
+                              </div>
                             </div>
+
+                            <div className="text-right">
+                              <div className="text-lg font-semibold text-gray-900">
+                                ₵{payment.amount}
+                              </div>
+                              <span
+                                className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                                  payment.status
+                                )}`}
+                              >
+                                {payment.status}
+                              </span>
+                              {payment.paymentType === "installment" &&
+                                payment.remainingBalance && (
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Remaining: ₵{payment.remainingBalance}
+                                  </p>
+                                )}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/20 p-8 text-center">
+                        <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                          No Payment History
+                        </h4>
+                        <p className="text-gray-600 mb-4">
+                          You haven't made any payments yet. Enroll in a course
+                          to get started!
+                        </p>
+                        <Link
+                          to="/courses"
+                          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                        >
+                          <BookOpen className="h-4 w-4 mr-2" />
+                          Browse Courses
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Installment Plans Section */}
+                {paymentSubTab === "installments" && (
+                  <div className="space-y-4">
+                    {installmentPlans.length > 0 ? (
+                      installmentPlans.map((plan) => (
+                        <div
+                          key={plan.id}
+                          className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/20 p-6"
+                        >
+                          <div className="flex items-center justify-between mb-4">
                             <div>
                               <h4 className="text-lg font-semibold text-gray-900">
-                                {payment.courseName}
+                                {plan.courseName}
                               </h4>
                               <p className="text-sm text-gray-600">
-                                Reference: {payment.reference}
+                                {plan.paymentPlan.charAt(0).toUpperCase() +
+                                  plan.paymentPlan.slice(1)}{" "}
+                                Payment Plan
                               </p>
-                              <p className="text-xs text-gray-500">
-                                Date:{" "}
+                            </div>
+                            <span
+                              className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                plan.status === "active"
+                                  ? "text-green-600 bg-green-50 border-green-200"
+                                  : plan.status === "completed"
+                                  ? "text-blue-600 bg-blue-50 border-blue-200"
+                                  : "text-red-600 bg-red-50 border-red-200"
+                              }`}
+                            >
+                              {plan.status.charAt(0).toUpperCase() +
+                                plan.status.slice(1)}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div>
+                              <p className="text-gray-500">Total Course Fee</p>
+                              <p className="font-semibold text-gray-900">
+                                ₵{plan.totalCourseFee.toLocaleString()}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-500">
+                                Installment Amount
+                              </p>
+                              <p className="font-semibold text-gray-900">
+                                ₵{plan.installmentAmount.toLocaleString()}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-500">Progress</p>
+                              <p className="font-semibold text-gray-900">
+                                {plan.paidInstallments} /{" "}
+                                {plan.totalInstallments}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-500">Remaining Balance</p>
+                              <p className="font-semibold text-red-600">
+                                ₵{plan.remainingBalance.toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+
+                          {plan.nextDueDate && plan.status === "active" && (
+                            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                              <p className="text-sm text-blue-800">
+                                <strong>Next Due Date:</strong>{" "}
                                 {new Date(
-                                  payment.createdAt
+                                  plan.nextDueDate
                                 ).toLocaleDateString()}
                               </p>
                             </div>
-                          </div>
+                          )}
 
-                          <div className="text-right">
-                            <div className="text-lg font-semibold text-gray-900">
-                              ₵{payment.amount}
+                          {plan.status === "completed" && (
+                            <div className="mt-4 p-3 bg-green-50 rounded-lg">
+                              <p className="text-sm text-green-800">
+                                ✅ All installments have been paid successfully!
+                              </p>
                             </div>
-                            <span
-                              className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                                payment.status
-                              )}`}
-                            >
-                              {payment.status}
-                            </span>
-                          </div>
+                          )}
                         </div>
+                      ))
+                    ) : (
+                      <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/20 p-8 text-center">
+                        <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                          No Installment Plans
+                        </h4>
+                        <p className="text-gray-600 mb-4">
+                          You don't have any active installment plans. Create
+                          one when enrolling in a course!
+                        </p>
+                        <Link
+                          to="/courses"
+                          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                        >
+                          <BookOpen className="h-4 w-4 mr-2" />
+                          Browse Courses
+                        </Link>
                       </div>
-                    ))
-                  ) : (
-                    <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/20 p-8 text-center">
-                      <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                        No Payment History
-                      </h4>
-                      <p className="text-gray-600 mb-4">
-                        You haven't made any payments yet. Enroll in a course to
-                        get started!
-                      </p>
-                      <Link
-                        to="/courses"
-                        className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
-                      >
-                        <BookOpen className="h-4 w-4 mr-2" />
-                        Browse Courses
-                      </Link>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

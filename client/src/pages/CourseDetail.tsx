@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../utils/api";
 import toast from "react-hot-toast";
+import CourseFeeInstallmentModal from "../components/CourseFeeInstallmentModal";
 import { useForm } from "react-hook-form";
 import {
   BookOpen,
@@ -75,6 +76,9 @@ const CourseDetail: React.FC = () => {
   >("form");
   const [paymentData, setPaymentData] = useState<any>(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [showInstallmentModal, setShowInstallmentModal] = useState(false);
+  const [hasApplied, setHasApplied] = useState(false);
+  const [checkingApplication, setCheckingApplication] = useState(false);
 
   const {
     register,
@@ -95,9 +99,35 @@ const CourseDetail: React.FC = () => {
     }
   }, [id, navigate]);
 
+  // Check if user has already applied for this course
+  const checkApplicationStatus = useCallback(async () => {
+    if (!user || !id) return;
+
+    setCheckingApplication(true);
+    try {
+      const response = await api.get(`/registrations/check/${id}`);
+      if (response.data.success) {
+        setHasApplied(response.data.data.hasApplied);
+      }
+    } catch (error: any) {
+      // If 404, user hasn't applied yet
+      if (error.response?.status !== 404) {
+        console.error("Error checking application status:", error);
+      }
+    } finally {
+      setCheckingApplication(false);
+    }
+  }, [user, id]);
+
   useEffect(() => {
     fetchCourse();
   }, [fetchCourse]);
+
+  useEffect(() => {
+    if (course && user) {
+      checkApplicationStatus();
+    }
+  }, [course, user, checkApplicationStatus]);
 
   useEffect(() => {
     if (user) {
@@ -534,18 +564,47 @@ Would you like to go to your Student Dashboard now?
                   </div>
                 ) : !showApplicationForm ? (
                   <div className="space-y-4">
-                    <div className="bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-xl p-4">
-                      <CheckCircle className="h-5 w-5 text-green-500 mb-2" />
-                      <p className="text-green-800 text-sm font-medium">
-                        You're logged in and ready to apply!
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setShowApplicationForm(true)}
-                      className="w-full bg-gradient-to-r from-primary to-secondary text-white font-semibold py-3 px-6 rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200"
-                    >
-                      Start Application
-                    </button>
+                    {hasApplied ? (
+                      <>
+                        <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-4">
+                          <CheckCircle className="h-5 w-5 text-blue-500 mb-2" />
+                          <p className="text-blue-800 text-sm font-medium">
+                            ✅ You have already applied for this course!
+                          </p>
+                          <p className="text-blue-700 text-xs mt-1">
+                            Your application is being reviewed. You can now set
+                            up your course fee payment plan.
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setShowInstallmentModal(true)}
+                          className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold py-3 px-6 rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200"
+                        >
+                          Set Up Payment Plan
+                        </button>
+                        <button
+                          onClick={() => navigate("/dashboard")}
+                          className="w-full border-2 border-gray-300 text-gray-700 font-semibold py-3 px-6 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
+                        >
+                          Go to Dashboard
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-xl p-4">
+                          <CheckCircle className="h-5 w-5 text-green-500 mb-2" />
+                          <p className="text-green-800 text-sm font-medium">
+                            You're logged in and ready to apply!
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setShowApplicationForm(true)}
+                          className="w-full bg-gradient-to-r from-primary to-secondary text-white font-semibold py-3 px-6 rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200"
+                        >
+                          Start Application
+                        </button>
+                      </>
+                    )}
                   </div>
                 ) : paymentStep === "payment" ? (
                   <div className="space-y-6">
@@ -1050,6 +1109,21 @@ Would you like to go to your Student Dashboard now?
       </section>
 
       <Footer />
+
+      {/* Course Fee Installment Modal */}
+      {course && (
+        <CourseFeeInstallmentModal
+          isOpen={showInstallmentModal}
+          onClose={() => setShowInstallmentModal(false)}
+          courseId={course.id}
+          courseName={course.name}
+          courseFee={course.price}
+          onInstallmentPlanCreated={() => {
+            // Refresh any necessary data
+            toast.success("Installment plan created successfully!");
+          }}
+        />
+      )}
     </div>
   );
 };

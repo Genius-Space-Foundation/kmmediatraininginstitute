@@ -77,11 +77,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   useEffect(() => {
+    let isMounted = true;
+    let retryTimeout: NodeJS.Timeout;
+
     const initializeAuth = async () => {
       const storedToken = localStorage.getItem("token");
       console.log("AuthContext - Stored token:", storedToken);
 
-      if (storedToken) {
+      if (storedToken && isMounted) {
         try {
           // Set token in API headers
           api.defaults.headers.common[
@@ -91,6 +94,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.log("AuthContext - Calling /auth/profile");
           const response = await api.get("/auth/profile");
           console.log("AuthContext - Profile response:", response.data);
+
+          if (!isMounted) return;
 
           // Check if response has the expected structure
           if (
@@ -112,6 +117,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             throw new Error("Invalid response structure");
           }
         } catch (error: any) {
+          if (!isMounted) return;
+
+          // Handle rate limiting specifically
+          if (error.response?.status === 429) {
+            console.warn(
+              "AuthContext - Rate limited, retrying in 5 seconds..."
+            );
+            retryTimeout = setTimeout(() => {
+              if (isMounted) {
+                initializeAuth();
+              }
+            }, 5000);
+            return;
+          }
+
           // Token is invalid or expired
           console.error("AuthContext - Token validation failed:", error);
           localStorage.removeItem("token");
@@ -120,10 +140,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           delete api.defaults.headers.common["Authorization"];
         }
       }
-      setLoading(false);
+      if (isMounted) {
+        setLoading(false);
+      }
     };
 
-    initializeAuth();
+    // Add a small delay to prevent rapid successive calls
+    const timeoutId = setTimeout(() => {
+      initializeAuth();
+    }, 100);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
+    };
   }, []);
 
   const login = async (email: string, password: string) => {

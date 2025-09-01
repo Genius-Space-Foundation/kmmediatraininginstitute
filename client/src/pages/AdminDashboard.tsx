@@ -22,6 +22,14 @@ interface DashboardStats {
   publishedStories: number;
   totalComments: number;
   averageRating: number;
+  // Enhanced payment stats
+  totalPayments?: number;
+  successfulPayments?: number;
+  failedPayments?: number;
+  pendingPayments?: number;
+  applicationFees?: number;
+  courseFees?: number;
+  installmentPayments?: number;
 }
 
 const AdminDashboard: React.FC = () => {
@@ -31,12 +39,10 @@ const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user || user.role !== "admin") {
-      navigate("/login");
-      return;
-    }
+    // AdminRoute component already handles role validation
+    // No need for additional role checking here
     fetchDashboardData();
-  }, [user, navigate]);
+  }, [user]);
 
   const fetchDashboardData = async () => {
     try {
@@ -49,6 +55,10 @@ const AdminDashboard: React.FC = () => {
       // Fetch registration stats
       const registrationsResponse = await api.get("/registrations/admin/stats");
       const registrationStats = registrationsResponse.data.data;
+
+      // Fetch payment stats (actual payment data)
+      const paymentsResponse = await api.get("/payments/admin/stats");
+      const paymentStats = paymentsResponse.data.data;
 
       // Fetch user stats (placeholder - would need user stats endpoint)
       const userStats = {
@@ -73,18 +83,33 @@ const AdminDashboard: React.FC = () => {
         approvedRegistrations: registrationStats.approvedRegistrations,
         rejectedRegistrations: registrationStats.rejectedRegistrations,
         completedRegistrations: registrationStats.completedRegistrations,
-        totalRevenue: registrationStats.totalRevenue,
-        monthlyRevenue: registrationStats.totalRevenue * 0.3, // Placeholder
+        totalRevenue: paymentStats.totalRevenue || 0,
+        monthlyRevenue: paymentStats.monthlyRevenue || 0,
         activeUsers: userStats.activeUsers,
         systemHealth: 98,
         totalStories: storyStats.totalStories,
         publishedStories: storyStats.publishedStories,
         totalComments: storyStats.totalComments,
         averageRating: storyStats.averageRating,
+        // Enhanced payment stats
+        totalPayments: paymentStats.totalPayments || 0,
+        successfulPayments: paymentStats.successfulPayments || 0,
+        failedPayments: paymentStats.failedPayments || 0,
+        pendingPayments: paymentStats.pendingPayments || 0,
+        applicationFees: paymentStats.applicationFees || 0,
+        courseFees: paymentStats.courseFees || 0,
+        installmentPayments: paymentStats.installmentPayments || 0,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching dashboard data:", error);
-      toast.error("Failed to load dashboard data");
+      const errorMessage =
+        error.response?.data?.message || "Failed to load dashboard data";
+      toast.error(errorMessage);
+
+      // If unauthorized, redirect to login
+      if (error.response?.status === 401) {
+        navigate("/login");
+      }
     } finally {
       setLoading(false);
     }

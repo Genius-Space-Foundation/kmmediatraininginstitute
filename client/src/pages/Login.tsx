@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { useAuth } from "../contexts/AuthContext";
 import { toast } from "react-hot-toast";
+import Logo from "../components/Logo";
 import {
   Eye,
   EyeOff,
@@ -62,12 +63,8 @@ const Login: React.FC = () => {
           <div className="text-center">
             <div className="flex justify-center mb-8">
               <div className="relative">
-                <div className="w-20 h-20 rounded-2xl overflow-hidden shadow-lg">
-                  <img
-                    src="/images/logo.jpeg"
-                    alt="KM Media Logo"
-                    className="w-full h-full object-cover"
-                  />
+                <div className="w-20 h-20">
+                  <Logo size="lg" showText={false} />
                 </div>
                 <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
                   <Sparkles className="h-3 w-3 text-white" />

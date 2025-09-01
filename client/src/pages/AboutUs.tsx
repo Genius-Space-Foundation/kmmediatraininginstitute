@@ -19,14 +19,16 @@ const teamMembers = [
     name: "Jane Doe",
     role: "Lead Trainer",
     bio: "Jane brings over 10 years of experience in digital education and curriculum development.",
-    image: "/team/jane.jpg",
+    image:
+      "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=400&h=400&fit=crop&crop=face",
     expertise: ["Curriculum Design", "Digital Learning", "Student Success"],
   },
   {
     name: "John Smith",
     role: "Project Manager",
     bio: "John specializes in project delivery and team leadership, ensuring smooth operations.",
-    image: "/team/john.jpg",
+    image:
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=face",
     expertise: [
       "Project Management",
       "Team Leadership",
@@ -109,12 +111,15 @@ const AboutUs: React.FC = () => {
 
             <div className="relative">
               <div className="relative z-10">
-                <img
-                  src="/team/hero-edu.svg"
-                  alt="About Us"
-                  className="w-full max-w-lg mx-auto drop-shadow-2xl animate-float"
-                  onError={(e) => (e.currentTarget.style.display = "none")}
-                />
+                <div className="w-full h-64 lg:h-96 bg-gradient-to-br from-blue-100 to-indigo-200 rounded-2xl flex items-center justify-center">
+                  <div className="text-center">
+                    <GraduationCap className="w-16 h-16 text-blue-600 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-blue-800">
+                      KM Media Training Institute
+                    </h3>
+                    <p className="text-blue-600 mt-2">Empowering Education</p>
+                  </div>
+                </div>
               </div>
               <div className="absolute inset-0 bg-gradient-to-r from-blue-400/20 to-purple-400/20 rounded-full blur-3xl"></div>
             </div>

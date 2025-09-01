@@ -41,7 +41,7 @@ router.get(
         (r: any) => r.status === "completed"
       ).length;
 
-      // Get recent payments
+      // Get recent payments (simplified query to avoid missing columns)
       const paymentsQuery = `
       SELECT p.*, c.name as "courseName"
       FROM payments p
@@ -56,7 +56,7 @@ router.get(
 
       // Calculate total spent
       const totalSpent = payments
-        .filter((p: any) => p.status === "successful")
+        .filter((p: any) => p.status === "success")
         .reduce((sum: number, p: any) => sum + parseFloat(p.amount), 0);
 
       res.json({

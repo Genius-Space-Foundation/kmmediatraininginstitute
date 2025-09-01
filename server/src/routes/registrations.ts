@@ -54,6 +54,35 @@ const registrationValidation = [
     .withMessage("Year attended to is required"),
 ];
 
+// Check if user has applied for a specific course
+router.get(
+  "/check/:courseId",
+  authenticateToken,
+  requireUser,
+  (req: AuthRequest, res: Response) => {
+    const userId = req.user!.id;
+    const courseId = req.params.courseId;
+
+    db.get(
+      `SELECT id FROM registrations WHERE userId = ? AND courseId = ?`,
+      [userId, courseId],
+      (err, registration) => {
+        if (err) {
+          return res.status(500).json({
+            success: false,
+            message: "Database error",
+          });
+        }
+
+        res.json({
+          success: true,
+          data: { hasApplied: !!registration },
+        });
+      }
+    );
+  }
+);
+
 // Get user's registrations
 router.get(
   "/my",

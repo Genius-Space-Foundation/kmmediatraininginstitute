@@ -35,6 +35,14 @@ interface DashboardStats {
   publishedStories: number;
   totalComments: number;
   averageRating: number;
+  // Enhanced payment stats
+  totalPayments?: number;
+  successfulPayments?: number;
+  failedPayments?: number;
+  pendingPayments?: number;
+  applicationFees?: number;
+  courseFees?: number;
+  installmentPayments?: number;
 }
 
 interface DashboardOverviewProps {
@@ -47,9 +55,9 @@ const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   loading,
 }) => {
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat("en-GH", {
       style: "currency",
-      currency: "USD",
+      currency: "GHS",
     }).format(amount);
   };
 
@@ -293,6 +301,57 @@ const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               </div>
               <span className="font-semibold text-gray-900 dark:text-white">
                 {stats?.completedRegistrations || 0}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Payment Status Overview */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+          <h3 className="text-responsive-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-4">
+            Payment Status
+          </h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <CheckCircle className="h-5 w-5 text-green-500 mr-3" />
+                <span className="text-gray-700 dark:text-gray-300">
+                  Successful
+                </span>
+              </div>
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {stats?.successfulPayments || 0}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Clock className="h-5 w-5 text-yellow-500 mr-3" />
+                <span className="text-gray-700 dark:text-gray-300">
+                  Pending
+                </span>
+              </div>
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {stats?.pendingPayments || 0}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <AlertTriangle className="h-5 w-5 text-red-500 mr-3" />
+                <span className="text-gray-700 dark:text-gray-300">Failed</span>
+              </div>
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {stats?.failedPayments || 0}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <DollarSign className="h-5 w-5 text-blue-500 mr-3" />
+                <span className="text-gray-700 dark:text-gray-300">
+                  Total Revenue
+                </span>
+              </div>
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {formatCurrency(stats?.totalRevenue || 0)}
               </span>
             </div>
           </div>

@@ -85,7 +85,7 @@ export interface AnalyticsResponse {
 
 // Create axios instance with base configuration
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || "/api",
+  baseURL: process.env.REACT_APP_API_URL || "http://localhost:5000/api",
   headers: {
     "Content-Type": "application/json",
   },
@@ -177,8 +177,16 @@ api.interceptors.response.use(
       }
     }
 
+    // Handle rate limiting (429)
+    if (error.response?.status === 429) {
+      const retryAfter = error.response.headers["retry-after"];
+      const message = retryAfter
+        ? `Too many requests. Please wait ${retryAfter} seconds before trying again.`
+        : "Too many requests. Please wait a moment before trying again.";
+      toast.error(message);
+    }
     // Handle other errors
-    if (error.response?.status === 403) {
+    else if (error.response?.status === 403) {
       toast.error(
         "Access denied. You don't have permission to perform this action."
       );

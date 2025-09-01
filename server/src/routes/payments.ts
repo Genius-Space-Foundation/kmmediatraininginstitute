@@ -1,6 +1,10 @@
 import { Router, Request, Response } from "express";
 import { body, validationResult } from "express-validator";
-import { authenticateToken, requireUser } from "../middleware/auth";
+import {
+  authenticateToken,
+  requireUser,
+  requireAdmin,
+} from "../middleware/auth";
 import {
   AuthRequest,
   PaymentRequest,
@@ -100,6 +104,7 @@ router.post(
         firstName,
         lastName,
         phone,
+        paymentType: "application_fee",
         callbackUrl: `${
           process.env.CLIENT_URL || "http://localhost:3000"
         }/payment/callback`,
@@ -181,7 +186,7 @@ router.post(
 
             if (existingRegistration.rows.length === 0) {
               try {
-                // Create course registration automatically with actual schema
+                // Create course registration with actual schema (only existing fields)
                 const registrationResult = await client.query(
                   `INSERT INTO registrations (
                     "userId", "courseId", status, "registrationDate", notes, "createdAt", "updatedAt"
@@ -269,6 +274,305 @@ router.get(
       res.status(500).json({
         success: false,
         message: "Server error",
+      });
+    }
+  }
+);
+
+// Get user's installment plans
+router.get(
+  "/installment-plans",
+  authenticateToken,
+  requireUser,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const installmentPlans = await paymentService.getInstallmentPlansByUserId(
+        userId
+      );
+
+      res.json({
+        success: true,
+        data: { installmentPlans },
+      });
+    } catch (error: any) {
+      console.error("Get installment plans error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Server error",
+      });
+    }
+  }
+);
+
+// Get specific installment plan for a course
+router.get(
+  "/installment-plan/:courseId",
+  authenticateToken,
+  requireUser,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const courseId = parseInt(req.params.courseId);
+
+      const installmentPlan = await paymentService.getCourseFeeInstallmentPlan(
+        userId,
+        courseId
+      );
+
+      if (!installmentPlan) {
+        return res.status(404).json({
+          success: false,
+          message: "Installment plan not found",
+        });
+      }
+
+      res.json({
+        success: true,
+        data: { installmentPlan },
+      });
+    } catch (error: any) {
+      console.error("Get installment plan error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Server error",
+      });
+    }
+  }
+);
+
+// Create installment plan
+router.post(
+  "/installment-plan",
+  authenticateToken,
+  requireUser,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { courseId, totalCourseFee, totalInstallments, paymentPlan } =
+        req.body;
+
+      // Validate required fields
+      if (!courseId || !totalCourseFee || !totalInstallments || !paymentPlan) {
+        return res.status(400).json({
+          success: false,
+          message: "Missing required fields",
+        });
+      }
+
+      // Calculate installment amount
+      const installmentAmount = Math.ceil(totalCourseFee / totalInstallments);
+
+      // Create installment plan
+      const installmentPlan =
+        await paymentService.createCourseFeeInstallmentPlan({
+          userId,
+          courseId,
+          totalCourseFee,
+          totalInstallments,
+          paymentPlan,
+          installmentAmount,
+        });
+
+      res.json({
+        success: true,
+        message: "Installment plan created successfully",
+        data: { installmentPlan },
+      });
+    } catch (error: any) {
+      console.error("Create installment plan error:", error);
+      console.error("Error details:", error.message);
+      console.error("Error stack:", error.stack);
+      res.status(500).json({
+        success: false,
+        message: "Server error",
+        error: error.message,
+      });
+    }
+  }
+);
+
+// Get payment statistics (admin only)
+router.get(
+  "/admin/stats",
+  authenticateToken,
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const client = await pool.connect();
+      try {
+        // Get total payments
+        const totalPaymentsResult = await client.query(
+          "SELECT COUNT(*) as count FROM payments"
+        );
+        const totalPayments = parseInt(totalPaymentsResult.rows[0].count);
+
+        // Get successful payments
+        const successfulPaymentsResult = await client.query(
+          "SELECT COUNT(*) as count FROM payments WHERE status = 'success'"
+        );
+        const successfulPayments = parseInt(
+          successfulPaymentsResult.rows[0].count
+        );
+
+        // Get failed payments
+        const failedPaymentsResult = await client.query(
+          "SELECT COUNT(*) as count FROM payments WHERE status = 'failed'"
+        );
+        const failedPayments = parseInt(failedPaymentsResult.rows[0].count);
+
+        // Get pending payments
+        const pendingPaymentsResult = await client.query(
+          "SELECT COUNT(*) as count FROM payments WHERE status = 'pending'"
+        );
+        const pendingPayments = parseInt(pendingPaymentsResult.rows[0].count);
+
+        // Get total revenue
+        const totalRevenueResult = await client.query(
+          `SELECT COALESCE(SUM(CAST(amount AS DECIMAL)), 0) as total 
+           FROM payments WHERE status = 'success'`
+        );
+        const totalRevenue = parseFloat(
+          totalRevenueResult.rows[0].total || "0"
+        );
+
+        // Get monthly revenue
+        const monthlyRevenueResult = await client.query(
+          `SELECT COALESCE(SUM(CAST(amount AS DECIMAL)), 0) as total 
+           FROM payments 
+           WHERE status = 'success' 
+           AND "createdAt" >= DATE_TRUNC('month', CURRENT_DATE)`
+        );
+        const monthlyRevenue = parseFloat(
+          monthlyRevenueResult.rows[0].total || "0"
+        );
+
+        // Get recent payments
+        const recentPaymentsResult = await client.query(
+          `SELECT p.*, u."firstName", u."lastName", c.name as "courseName"
+           FROM payments p
+           LEFT JOIN users u ON p."userId" = u.id
+           LEFT JOIN courses c ON p."courseId" = c.id
+           ORDER BY p."createdAt" DESC
+           LIMIT 5`
+        );
+
+        res.json({
+          success: true,
+          data: {
+            totalPayments,
+            successfulPayments,
+            failedPayments,
+            pendingPayments,
+            totalRevenue,
+            monthlyRevenue,
+            recentPayments: recentPaymentsResult.rows,
+          },
+        });
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error("Get payment stats error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Database error",
+      });
+    }
+  }
+);
+
+// Get all payments (admin only)
+router.get(
+  "/admin/all",
+  authenticateToken,
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const client = await pool.connect();
+      try {
+        const query = `
+          SELECT p.*, 
+                 u."firstName", u."lastName", u.email,
+                 c.name as "courseName", c.description as "courseDescription"
+          FROM payments p
+          LEFT JOIN users u ON p."userId" = u.id
+          LEFT JOIN courses c ON p."courseId" = c.id
+          ORDER BY p."createdAt" DESC
+        `;
+
+        const result = await client.query(query);
+
+        res.json({
+          success: true,
+          data: { payments: result.rows },
+        });
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error("Get all payments error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Database error",
+      });
+    }
+  }
+);
+
+// Get all installment plans (admin only)
+router.get(
+  "/admin/installment-plans",
+  authenticateToken,
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const client = await pool.connect();
+      try {
+        // Check if course_fee_installments table exists
+        const tableExistsResult = await client.query(`
+          SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = 'course_fee_installments'
+          );
+        `);
+
+        const tableExists = tableExistsResult.rows[0].exists;
+
+        if (!tableExists) {
+          // Return empty array if table doesn't exist
+          res.json({
+            success: true,
+            data: { installmentPlans: [] },
+          });
+          return;
+        }
+
+        const query = `
+          SELECT cfi.*, 
+                 u."firstName", u."lastName", u.email,
+                 c.name as "courseName", c.description as "courseDescription"
+          FROM course_fee_installments cfi
+          LEFT JOIN users u ON cfi."userId" = u.id
+          LEFT JOIN courses c ON cfi."courseId" = c.id
+          ORDER BY cfi."createdAt" DESC
+        `;
+
+        const result = await client.query(query);
+
+        res.json({
+          success: true,
+          data: { installmentPlans: result.rows },
+        });
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error("Get all installment plans error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Database error",
       });
     }
   }

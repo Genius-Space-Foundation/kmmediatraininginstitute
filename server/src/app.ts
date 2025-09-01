@@ -33,16 +33,35 @@ app.use(helmet());
 // CORS configuration
 app.use(cors(config.cors));
 
-// Rate limiting
+// Rate limiting - More lenient for development
 const limiter = rateLimit({
-  windowMs: config.rateLimit.windowMs,
-  max: config.rateLimit.max,
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200, // Increased from 100 to 200 requests per 15 minutes
   message: {
     success: false,
     message: "Too many requests from this IP, please try again later.",
   },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
+
+// More lenient rate limiting for auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50, // 50 requests per 15 minutes for auth
+  message: {
+    success: false,
+    message: "Too many authentication requests, please try again later.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 app.use(limiter);
+
+// Apply stricter rate limiting to auth routes
+app.use("/api/auth", authLimiter);
+app.use("/api/v1/auth", authLimiter);
 
 // Body parsing middleware
 app.use(express.json({ limit: "10mb" }));
