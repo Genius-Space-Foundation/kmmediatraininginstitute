@@ -52,9 +52,9 @@ const Home: React.FC = () => {
 
   // Dynamic background images for hero
   const heroImages = [
-    "https://images.unsplash.com/photo-1513258496099-48168024aec0?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1503676382389-4809596d5290?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=1200&q=80",
+    "/images/1.jpeg",
+    "/images/2.jpeg",
+    "/images/3.jpeg",
   ];
   const [bgIndex, setBgIndex] = useState(0);
 
@@ -251,7 +251,7 @@ const Home: React.FC = () => {
                     </div>
                     <div className="flex items-center justify-between">
                       <div className="text-xl sm:text-2xl font-bold text-primary">
-                        ${course.price}
+                        GHC{course.price}
                       </div>
                       <Link
                         to={`/courses/${course.id}`}
@@ -338,11 +338,9 @@ const Home: React.FC = () => {
                           <div className="flex items-center">
                             <Users className="h-4 w-4 mr-1" />
                             {story.author
-                              ? `${story.author.firstName || ""} ${
-                                  story.author.lastName || ""
+                              ? `${story.author.firstName || ""} ${story.author.lastName || ""
                                 }`.trim() || "Unknown Author"
-                              : `${story.firstName || ""} ${
-                                  story.lastName || ""
+                              : `${story.firstName || ""} ${story.lastName || ""
                                 }`.trim() || "Unknown Author"}
                           </div>
                           <div className="flex items-center">

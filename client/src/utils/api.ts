@@ -1,5 +1,6 @@
 import axios, { AxiosError, AxiosResponse } from "axios";
 import { toast } from "react-hot-toast";
+import { Assignment, StudentSubmission } from "../types/assignments";
 
 // Type definitions for API responses
 export interface Pagination {
@@ -68,7 +69,7 @@ export interface StoryResponse {
   liked: boolean;
 }
 
-export interface FeaturedStoriesResponse extends Array<Story> {}
+export interface FeaturedStoriesResponse extends Array<Story> { }
 
 export interface CommentsResponse {
   comments: Comment[];
@@ -376,4 +377,28 @@ export const uploadApi = {
   },
 };
 
+// Assignments API functions
+export const assignmentsApi = {
+  // Trainer functions
+  createAssignment: (data: Partial<Assignment>) =>
+    apiService.post<Assignment>("/assignments", data),
+
+  getAssignmentsForCourse: (courseId: number) =>
+    apiService.get<Assignment[]>(`/assignments/course/${courseId}`),
+
+  getSubmissionsForAssignment: (assignmentId: number) =>
+    apiService.get<StudentSubmission[]>(`/assignments/${assignmentId}/submissions`),
+
+  gradeSubmission: (submissionId: number, data: { grade: number; feedback?: string }) =>
+    apiService.post<StudentSubmission>(`/assignments/submissions/${submissionId}/grade`, data),
+
+  // Student functions
+  submitAssignment: (assignmentId: number, data: { fileUrl: string; fileName: string }) =>
+    apiService.post<StudentSubmission>(`/assignments/${assignmentId}/submit`, data),
+
+  getMySubmissions: () =>
+    apiService.get<StudentSubmission[]>("/assignments/my-submissions"),
+};
+
+// Export statement at the end
 export { api };

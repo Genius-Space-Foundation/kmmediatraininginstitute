@@ -1041,7 +1041,7 @@ const TrainerDashboard: React.FC = () => {
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-slate-500">Price</span>
                             <span className="font-semibold text-emerald-600">
-                              ${course.price}
+                              ₵{course.price}
                             </span>
                           </div>
                           <div className="flex items-center justify-between text-sm">
@@ -1275,6 +1275,202 @@ const TrainerDashboard: React.FC = () => {
                   </table>
                 </div>
               </div>
+            </div>
+          )}
+
+          {activeTab === "submissions" && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h3 className="text-2xl font-bold text-slate-900">
+                    Assignment Submissions
+                  </h3>
+                  <p className="text-slate-600">
+                    Review and grade student submissions
+                  </p>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="relative">
+                    <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                    <input
+                      type="text"
+                      placeholder="Search submissions..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {submissions.length > 0 ? (
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-slate-200">
+                      <thead className="bg-slate-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Student
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Assignment
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Course
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Submission Date
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Grade
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-slate-200">
+                        {submissions
+                          .filter(
+                            (submission) =>
+                              submission.firstName
+                                .toLowerCase()
+                                .includes(searchTerm.toLowerCase()) ||
+                              submission.lastName
+                                .toLowerCase()
+                                .includes(searchTerm.toLowerCase()) ||
+                              submission.email
+                                .toLowerCase()
+                                .includes(searchTerm.toLowerCase()) ||
+                              submission.assignmentTitle
+                                .toLowerCase()
+                                .includes(searchTerm.toLowerCase()) ||
+                              submission.courseName
+                                .toLowerCase()
+                                .includes(searchTerm.toLowerCase())
+                          )
+                          .map((submission) => (
+                            <tr
+                              key={submission.id}
+                              className="hover:bg-slate-50 transition-colors"
+                            >
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <div className="w-10 h-10 bg-gradient-to-r from-slate-600 to-slate-700 rounded-full flex items-center justify-center mr-4">
+                                    <span className="text-white font-semibold text-sm">
+                                      {submission.firstName.charAt(0)}
+                                      {submission.lastName.charAt(0)}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <p className="font-semibold text-slate-900">
+                                      {submission.firstName} {submission.lastName}
+                                    </p>
+                                    <p className="text-sm text-slate-600">
+                                      {submission.email}
+                                    </p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <p className="font-medium text-slate-900">
+                                  {submission.assignmentTitle}
+                                </p>
+                                <p className="text-sm text-slate-600">
+                                  Due: {new Date(submission.dueDate).toLocaleDateString()} {new Date(submission.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                </p>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <p className="text-slate-900">{submission.courseName}</p>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <p className="text-slate-900">
+                                  {new Date(submission.submissionDate).toLocaleDateString()}
+                                </p>
+                                <p className="text-sm text-slate-600">
+                                  {new Date(submission.submissionDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                </p>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span
+                                  className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                                    submission.status === "submitted"
+                                      ? "bg-emerald-100 text-emerald-700"
+                                      : submission.status === "late"
+                                      ? "bg-amber-100 text-amber-700"
+                                      : submission.status === "missing"
+                                      ? "bg-red-100 text-red-700"
+                                      : "bg-blue-100 text-blue-700"
+                                  }`}
+                                >
+                                  {submission.status.charAt(0).toUpperCase() +
+                                    submission.status.slice(1)}
+                                </span>
+                                {submission.isLate && (
+                                  <p className="text-xs text-amber-600 mt-1">
+                                    Late penalty: {submission.latePenaltyApplied}%
+                                  </p>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                {submission.grade !== null && submission.grade !== undefined ? (
+                                  <p className="font-semibold text-slate-900">
+                                    {submission.grade} / {submission.maxScore}
+                                  </p>
+                                ) : (
+                                  <p className="text-slate-500">Not graded</p>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <div className="flex items-center space-x-2">
+                                  <button 
+                                    className="text-blue-600 hover:text-blue-700"
+                                    onClick={() => navigate(`/trainer/submissions/${submission.id}`)}
+                                  >
+                                    <FaEye className="w-4 h-4" />
+                                  </button>
+                                  {submission.status !== "graded" && (
+                                    <button 
+                                      className="text-emerald-600 hover:text-emerald-700"
+                                      onClick={() => navigate(`/trainer/submissions/${submission.id}/grade`)}
+                                    >
+                                      <FaCheck className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                  {submission.fileUrl && (
+                                    <a
+                                      href={submission.fileUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-slate-600 hover:text-slate-700"
+                                    >
+                                      <FaDownload className="w-4 h-4" />
+                                    </a>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-center">
+                  <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <FaInbox className="w-8 h-8 text-slate-400" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-slate-900 mb-2">
+                    No Submissions Yet
+                  </h3>
+                  <p className="text-slate-600 max-w-md mx-auto">
+                    Submissions will appear here when students submit their assignments.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

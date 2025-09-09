@@ -349,9 +349,9 @@ const Courses: React.FC = () => {
                   >
                     <option value="all">All Prices</option>
                     <option value="free">Free Courses</option>
-                    <option value="low">Under $500</option>
-                    <option value="medium">$500 - $1000</option>
-                    <option value="high">Over $1000</option>
+                    <option value="low">Under GHC500</option>
+                    <option value="medium">GHC500 - GHC1000</option>
+                    <option value="high">Over GHC1000</option>
                   </select>
                 </div>
 

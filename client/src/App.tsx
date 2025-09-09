@@ -18,8 +18,14 @@ import StudentDashboard from "./pages/ModernStudentDashboard";
 import TrainerDashboard from "./pages/TrainerDashboard";
 // import TrainerAddCourse from "./pages/TrainerAddCourse"; // Removed - trainers don't create courses
 import TrainerEditCourse from "./pages/TrainerEditCourse";
+import { StudentAssignments } from "./pages/StudentAssignments";
+import { CourseAssignments } from "./pages/CourseAssignments";
+import { AssignmentDetails } from "./pages/AssignmentDetails";
 import TrainerEditProfile from "./pages/TrainerEditProfile";
 import TrainerCourseManagement from "./pages/TrainerCourseManagement";
+import CourseManagement from "./pages/CourseManagement";
+import SubmissionDetailPage from "./pages/SubmissionDetailPage";
+import SubmissionGradingPage from "./pages/SubmissionGradingPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminCourses from "./pages/AdminCourses";
 import AdminAddCourse from "./pages/AdminAddCourse";
@@ -67,6 +73,32 @@ function AppContent() {
           <Route path="/stories" element={<Stories />} />
           <Route path="/stories/:id" element={<StoryDetail />} />
           <Route path="/payment/callback" element={<PaymentCallback />} />
+
+          {/* Assignment Routes */}
+          <Route
+            path="/assignments"
+            element={
+              <PrivateRoute>
+                <StudentAssignments />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/courses/:courseId/assignments"
+            element={
+              <PrivateRoute>
+                <CourseAssignments />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/courses/:courseId/assignments/:assignmentId"
+            element={
+              <PrivateRoute>
+                <AssignmentDetails />
+              </PrivateRoute>
+            }
+          />
 
           {/* Protected Student Routes */}
           <Route
@@ -129,6 +161,14 @@ function AppContent() {
             }
           />
           <Route
+            path="/trainer/courses/:id/materials"
+            element={
+              <TrainerRoute>
+                <CourseManagement />
+              </TrainerRoute>
+            }
+          />
+          <Route
             path="/trainer/profile/edit"
             element={
               <TrainerRoute>
@@ -149,6 +189,22 @@ function AppContent() {
             element={
               <TrainerRoute>
                 <TrainerDashboard />
+              </TrainerRoute>
+            }
+          />
+          <Route
+            path="/trainer/submissions/:submissionId"
+            element={
+              <TrainerRoute>
+                <SubmissionDetailPage />
+              </TrainerRoute>
+            }
+          />
+          <Route
+            path="/trainer/submissions/:submissionId/grade"
+            element={
+              <TrainerRoute>
+                <SubmissionGradingPage />
               </TrainerRoute>
             }
           />

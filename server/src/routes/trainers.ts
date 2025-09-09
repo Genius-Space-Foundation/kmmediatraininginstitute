@@ -1278,7 +1278,7 @@ router.get(
              COUNT(CASE WHEN s.status = 'late' THEN 1 END) as "lateCount",
              COUNT(CASE WHEN s.status = 'missing' THEN 1 END) as "missingCount"
       FROM assignments a
-      LEFT JOIN student_submissions s ON a.id = s."assignmentId"
+      LEFT JOIN assignment_submissions s ON a.id = s."assignmentId"
       WHERE a."courseId" = $1
       GROUP BY a.id
       ORDER BY a."dueDate" ASC
@@ -1451,11 +1451,11 @@ router.get(
       SELECT s.*, 
              u."firstName", u."lastName", u.email,
              a.title as "assignmentTitle", a."dueDate", a."maxScore"
-      FROM student_submissions s
+      FROM assignment_submissions s
       JOIN users u ON s."studentId" = u.id
       JOIN assignments a ON s."assignmentId" = a.id
       WHERE s."assignmentId" = $1
-      ORDER BY s."submissionDate" DESC
+      ORDER BY s."submittedAt" DESC
     `,
         [assignmentId]
       );
@@ -1507,7 +1507,7 @@ router.put(
       // Verify trainer owns this submission
       const submissionCheck = await client.query(
         `
-      SELECT s.id FROM student_submissions s
+      SELECT s.id FROM assignment_submissions s
       JOIN assignments a ON s."assignmentId" = a.id
       JOIN courses c ON a."courseId" = c.id
       WHERE s.id = $1 AND c."instructorId" = $2
@@ -1525,10 +1525,10 @@ router.put(
 
       const result = await client.query(
         `
-      UPDATE student_submissions 
-      SET grade = $1, feedback = $2, status = 'graded', "gradedBy" = $3, "gradedAt" = CURRENT_TIMESTAMP
+      UPDATE assignment_submissions 
+      SET score = $1, feedback = $2, status = 'graded', "gradedAt" = CURRENT_TIMESTAMP
       WHERE id = $4
-      RETURNING id, grade, feedback, status, "gradedAt"
+      RETURNING id, score as grade, feedback, status, "gradedAt"
     `,
         [grade, feedback, trainerId, submissionId]
       );
@@ -1760,10 +1760,10 @@ router.get(
         `
       SELECT 
         'submission' as type,
-        s."submissionDate" as date,
+        s."submittedAt" as date,
         u."firstName" || ' ' || u."lastName" as "studentName",
         a.title as "itemTitle"
-      FROM student_submissions s
+      FROM assignment_submissions s
       JOIN users u ON s."studentId" = u.id
       JOIN assignments a ON s."assignmentId" = a.id
       WHERE a."courseId" = $1
@@ -1822,7 +1822,7 @@ router.get(
                COUNT(CASE WHEN s.status = 'missing' THEN 1 END) as "missingCount"
         FROM assignments a
         JOIN courses c ON a."courseId" = c.id
-        LEFT JOIN student_submissions s ON a.id = s."assignmentId"
+        LEFT JOIN assignment_submissions s ON a.id = s."assignmentId"
         WHERE c."instructorId" = $1
         GROUP BY a.id, c.name
         ORDER BY a."dueDate" ASC
@@ -1862,12 +1862,12 @@ router.get(
                u."firstName", u."lastName", u.email,
                a.title as "assignmentTitle", a."dueDate", a."maxScore",
                c.name as "courseName", c.id as "courseId"
-        FROM student_submissions s
+        FROM assignment_submissions s
         JOIN users u ON s."studentId" = u.id
         JOIN assignments a ON s."assignmentId" = a.id
         JOIN courses c ON a."courseId" = c.id
         WHERE c."instructorId" = $1
-        ORDER BY s."submissionDate" DESC
+        ORDER BY s."submittedAt" DESC
         `,
         [trainerId]
       );

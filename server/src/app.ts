@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import path from "path";
 import { config } from "./config";
 import { logger } from "./utils/logger";
 import { AppError, createErrorResponse } from "./utils/errors";
@@ -9,6 +10,7 @@ import { AppError, createErrorResponse } from "./utils/errors";
 // Import routes
 import authRoutes from "./routes/v1/auth";
 import coursesRoutes from "./routes/v1/courses";
+import courseMaterialsRoutes from "./routes/courseMaterials";
 
 // Import legacy routes (to be migrated)
 import legacyAuthRoutes from "./routes/auth";
@@ -21,6 +23,8 @@ import paymentRoutes from "./routes/payments";
 import studentRoutes from "./routes/students";
 import courseContentRoutes from "./routes/course-content";
 import adminCourseAccessRoutes from "./routes/admin-course-access";
+import assignmentsRoutes from "./routes/assignments";
+import uploadRoutes from "./routes/upload";
 
 const app = express();
 
@@ -32,6 +36,9 @@ app.use(helmet());
 
 // CORS configuration
 app.use(cors(config.cors));
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Rate limiting - More lenient for development
 const limiter = rateLimit({
@@ -98,6 +105,9 @@ app.use("/api/payments", paymentRoutes); // Payment routes
 app.use("/api/students", studentRoutes); // Student dashboard routes
 app.use("/api/courses", courseContentRoutes); // Course content routes
 app.use("/api/admin", adminCourseAccessRoutes); // Admin course access routes
+app.use("/api/assignments", assignmentsRoutes); // Assignments routes
+app.use("/api/v1/materials", courseMaterialsRoutes); // Course materials routes
+app.use("/api/upload", uploadRoutes); // File upload routes
 
 // 404 handler
 app.use("*", (req, res) => {

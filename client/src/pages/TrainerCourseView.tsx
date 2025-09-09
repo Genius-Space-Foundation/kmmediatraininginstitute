@@ -159,44 +159,40 @@ const TrainerCourseView: React.FC = () => {
         <div className="flex space-x-1 bg-white rounded-xl p-1 shadow-sm border border-gray-200 mb-8">
           <button
             onClick={() => setActiveTab("overview")}
-            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
-              activeTab === "overview"
+            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${activeTab === "overview"
                 ? "bg-blue-600 text-white"
                 : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-            }`}
+              }`}
           >
             <BookOpen className="h-4 w-4 inline mr-2" />
             Overview
           </button>
           <button
             onClick={() => setActiveTab("content")}
-            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
-              activeTab === "content"
+            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${activeTab === "content"
                 ? "bg-blue-600 text-white"
                 : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-            }`}
+              }`}
           >
             <Target className="h-4 w-4 inline mr-2" />
             Content Management
           </button>
           <button
             onClick={() => setActiveTab("students")}
-            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
-              activeTab === "students"
+            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${activeTab === "students"
                 ? "bg-blue-600 text-white"
                 : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-            }`}
+              }`}
           >
             <Users className="h-4 w-4 inline mr-2" />
             Students
           </button>
           <button
             onClick={() => setActiveTab("analytics")}
-            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
-              activeTab === "analytics"
+            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${activeTab === "analytics"
                 ? "bg-blue-600 text-white"
                 : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-            }`}
+              }`}
           >
             <BarChart3 className="h-4 w-4 inline mr-2" />
             Analytics
@@ -278,7 +274,7 @@ const TrainerCourseView: React.FC = () => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Price:</span>
-                      <span className="font-medium">${course.price}</span>
+                      <span className="font-medium">GHC{course.price}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Max Students:</span>
@@ -287,9 +283,8 @@ const TrainerCourseView: React.FC = () => {
                     <div className="flex justify-between">
                       <span className="text-gray-600">Status:</span>
                       <span
-                        className={`font-medium ${
-                          course.isActive ? "text-green-600" : "text-red-600"
-                        }`}
+                        className={`font-medium ${course.isActive ? "text-green-600" : "text-red-600"
+                          }`}
                       >
                         {course.isActive ? "Active" : "Inactive"}
                       </span>

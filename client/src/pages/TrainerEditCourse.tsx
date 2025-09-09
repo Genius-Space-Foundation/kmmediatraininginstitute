@@ -216,7 +216,7 @@ const TrainerEditCourse: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Price ($) *
+                  Price (GHC) *
                 </label>
                 <input
                   type="number"

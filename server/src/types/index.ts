@@ -61,6 +61,14 @@ export interface AuthRequest extends Request {
   };
 }
 
+export interface AuthenticatedRequest extends Request {
+  user: {
+    id: number;
+    email: string;
+    role: string;
+  };
+}
+
 export interface LoginRequest {
   email: string;
   password: string;

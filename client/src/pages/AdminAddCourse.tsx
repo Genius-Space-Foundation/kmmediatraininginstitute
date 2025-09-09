@@ -360,7 +360,7 @@ const AdminAddCourse: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Price ($)
+                          Price (GHC)
                         </label>
                         <input
                           type="number"

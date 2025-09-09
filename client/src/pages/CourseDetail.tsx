@@ -54,6 +54,7 @@ interface ApplicationForm {
   maritalStatus: string;
   occupation: string;
   telephone: string;
+  gender: string;
 
   // Educational Background
   levelOfEducation: string;
@@ -156,11 +157,11 @@ const CourseDetail: React.FC = () => {
 
 Course: ${course?.name}
 Duration: ${course?.duration}
-Application Fee: ₵100
+Application Fee: GHC 100
 
 Are you sure you want to proceed with your application?
 
-You will be redirected to complete the payment of ₵100 for the application form.
+You will be redirected to complete the payment of GHC 100 for the application form.
 
 Click "OK" to proceed with payment.
     `;
@@ -518,7 +519,7 @@ Would you like to go to your Student Dashboard now?
                 <div className="bg-gradient-to-br from-primary/5 to-secondary/5 rounded-xl p-6 mb-6">
                   <div className="text-center mb-4">
                     <div className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-2">
-                      ${course.price}
+                      GHC{course.price}
                     </div>
                     <div className="text-sm text-gray-600 font-medium">
                       Course Fee
@@ -615,7 +616,7 @@ Would you like to go to your Student Dashboard now?
                       </h3>
                       <p className="text-blue-700 text-sm">
                         You are being redirected to Paystack to complete your
-                        payment of ₵100.
+                        payment of GHC 100.
                       </p>
                       <p className="text-blue-600 text-xs mt-2">
                         Please complete the payment to proceed with your
@@ -889,6 +890,28 @@ Would you like to go to your Student Dashboard now?
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
                           placeholder="Alternative phone number"
                         />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Gender *
+                        </label>
+                        <select
+                          {...register("gender", {
+                            required: "Gender is required"
+                          })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
+                        >
+                          <option value="">Select Gender</option>
+                          <option value="male">Male</option>
+                          <option value="female">Female</option>
+                          <option value="other">Prefer not to say</option>
+                        </select>
+                        {errors.gender && (
+                          <p className="text-xs text-red-600 mt-1">
+                            {errors.gender.message}
+                          </p>
+                        )}
                       </div>
                     </div>
 
