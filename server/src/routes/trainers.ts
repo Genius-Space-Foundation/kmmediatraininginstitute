@@ -512,7 +512,7 @@ router.get(
   }
 );
 
-// Get trainer's courses (trainer only)
+// Get trainer's assigned courses (trainer only)
 router.get(
   "/courses",
   authenticateToken,
@@ -526,9 +526,15 @@ router.get(
         `
       SELECT c.*, 
              COUNT(r.id) as enrolledStudents,
-             COUNT(CASE WHEN r.status = 'completed' THEN 1 END) as completedStudents
+             COUNT(CASE WHEN r.status = 'completed' THEN 1 END) as completedStudents,
+             COUNT(cm.id) as materialCount,
+             COUNT(a.id) as assignmentCount,
+             COUNT(q.id) as quizCount
       FROM courses c
       LEFT JOIN registrations r ON c.id = r."courseId"
+      LEFT JOIN course_materials cm ON c.id = cm."courseId"
+      LEFT JOIN assignments a ON c.id = a."courseId"
+      LEFT JOIN quizzes q ON c.id = q."courseId"
       WHERE c."instructorId" = $1
       GROUP BY c.id
       ORDER BY c."createdAt" DESC
@@ -865,34 +871,19 @@ router.get(
   }
 );
 
-// Update specific course (trainer only)
+// Update course content (trainer only) - Limited to content fields only
 router.put(
-  "/courses/:courseId",
+  "/courses/:courseId/content",
   authenticateToken,
   requireTrainer,
   [
-    body("name")
-      .trim()
-      .isLength({ min: 1 })
-      .withMessage("Course name is required"),
     body("description")
       .trim()
       .isLength({ min: 1 })
       .withMessage("Course description is required"),
-    body("duration")
-      .trim()
-      .isLength({ min: 1 })
-      .withMessage("Duration is required"),
-    body("price")
-      .isFloat({ min: 0 })
-      .withMessage("Price must be a positive number"),
-    body("maxStudents")
-      .isInt({ min: 1 })
-      .withMessage("Maximum students must be at least 1"),
     body("syllabus").optional().trim(),
     body("requirements").optional().trim(),
     body("learningOutcomes").optional().trim(),
-    body("isActive").optional().isBoolean(),
   ],
   async (req: AuthRequest, res: Response) => {
     try {
@@ -907,17 +898,8 @@ router.put(
 
       const trainerId = req.user!.id;
       const courseId = req.params.courseId;
-      const {
-        name,
-        description,
-        duration,
-        price,
-        maxStudents,
-        syllabus,
-        requirements,
-        learningOutcomes,
-        isActive,
-      } = req.body;
+      const { description, syllabus, requirements, learningOutcomes } =
+        req.body;
 
       const client = await pool.connect();
 
@@ -937,27 +919,21 @@ router.put(
         });
       }
 
-      // Update the course
+      // Update only content fields
       const result = await client.query(
         `
       UPDATE courses 
-      SET name = $1, description = $2, duration = $3, price = $4, "maxStudents" = $5,
-          syllabus = $6, requirements = $7, "learningOutcomes" = $8, "isActive" = $9, 
+      SET description = $1, syllabus = $2, requirements = $3, "learningOutcomes" = $4, 
           "updatedAt" = CURRENT_TIMESTAMP
-      WHERE id = $10 AND "instructorId" = $11
+      WHERE id = $5 AND "instructorId" = $6
       RETURNING id, name, description, duration, price, "maxStudents", category, excerpt, level,
                 syllabus, requirements, "learningOutcomes", "isActive", "createdAt", "updatedAt"
     `,
         [
-          name,
           description,
-          duration,
-          price,
-          maxStudents,
           syllabus,
           requirements,
           learningOutcomes,
-          isActive,
           courseId,
           trainerId,
         ]
@@ -965,15 +941,17 @@ router.put(
 
       client.release();
 
-      logger.info(`Trainer ${trainerId} updated course ${courseId}`);
+      logger.info(
+        `Trainer ${trainerId} updated course content for course ${courseId}`
+      );
 
       res.json({
         success: true,
-        message: "Course updated successfully",
+        message: "Course content updated successfully",
         course: result.rows[0],
       });
     } catch (error) {
-      logger.error("Error updating course:", error);
+      logger.error("Error updating course content:", error);
       res.status(500).json({
         success: false,
         message: "Database error",
@@ -982,105 +960,8 @@ router.put(
   }
 );
 
-// Create new course (trainer only)
-router.post(
-  "/courses",
-  authenticateToken,
-  requireTrainer,
-  [
-    body("name")
-      .trim()
-      .isLength({ min: 1 })
-      .withMessage("Course name is required"),
-    body("description")
-      .trim()
-      .isLength({ min: 1 })
-      .withMessage("Course description is required"),
-    body("duration")
-      .trim()
-      .isLength({ min: 1 })
-      .withMessage("Duration is required"),
-    body("price")
-      .isFloat({ min: 0 })
-      .withMessage("Price must be a positive number"),
-    body("maxStudents")
-      .isInt({ min: 1 })
-      .withMessage("Maximum students must be at least 1"),
-    body("startDate").isISO8601().withMessage("Valid start date is required"),
-    body("endDate").isISO8601().withMessage("Valid end date is required"),
-    body("syllabus").optional().trim(),
-    body("requirements").optional().trim(),
-    body("learningOutcomes").optional().trim(),
-  ],
-  async (req: AuthRequest, res: Response) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({
-          success: false,
-          message: "Validation failed",
-          errors: errors.array(),
-        });
-      }
-
-      const trainerId = req.user!.id;
-      const {
-        name,
-        description,
-        duration,
-        price,
-        maxStudents,
-        startDate,
-        endDate,
-        syllabus,
-        requirements,
-        learningOutcomes,
-      } = req.body;
-
-      const client = await pool.connect();
-
-      // Create the course
-      const result = await client.query(
-        `
-      INSERT INTO courses (name, description, duration, price, "maxStudents", "startDate", "endDate", 
-                          syllabus, requirements, "learningOutcomes", "instructorId", "isActive", "createdAt", "updatedAt")
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      RETURNING id, name, description, duration, price, "maxStudents", "startDate", "endDate", 
-                syllabus, requirements, "learningOutcomes", "isActive", "createdAt", "updatedAt"
-    `,
-        [
-          name,
-          description,
-          duration,
-          price,
-          maxStudents,
-          startDate,
-          endDate,
-          syllabus,
-          requirements,
-          learningOutcomes,
-          trainerId,
-        ]
-      );
-
-      client.release();
-
-      logger.info(`Trainer ${trainerId} created new course: ${name}`);
-
-      res.status(201).json({
-        success: true,
-        message: "Course created successfully",
-        course: result.rows[0],
-      });
-    } catch (error) {
-      logger.error("Error creating course:", error);
-      res.status(500).json({
-        success: false,
-        message: "Database error",
-      });
-    }
-  }
-);
+// Note: Course creation is now restricted to admins only
+// Trainers can only update assigned courses with specific fields
 
 // Enhanced Course Management Routes
 
@@ -1527,10 +1408,10 @@ router.put(
         `
       UPDATE assignment_submissions 
       SET score = $1, feedback = $2, status = 'graded', "gradedAt" = CURRENT_TIMESTAMP
-      WHERE id = $4
+      WHERE id = $3
       RETURNING id, score as grade, feedback, status, "gradedAt"
     `,
-        [grade, feedback, trainerId, submissionId]
+        [grade, feedback, submissionId]
       );
 
       client.release();

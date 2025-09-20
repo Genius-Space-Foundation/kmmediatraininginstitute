@@ -1,43 +1,83 @@
-import * as admin from 'firebase-admin';
-import { getStorage } from 'firebase-admin/storage';
+/**
+ * Firebase Configuration
+ *
+ * This module handles Firebase configuration for the application.
+ */
 
-// Initialize Firebase Admin SDK
-const initializeFirebase = () => {
+import admin from "firebase-admin";
+import { config } from "./index";
+
+export interface FirebaseConfig {
+  projectId: string;
+  serviceAccountPath?: string;
+  storageBucket?: string;
+  databaseURL?: string;
+}
+
+export const firebaseConfig: FirebaseConfig = {
+  projectId: config.firebase.projectId,
+  serviceAccountPath: config.firebase.serviceAccountPath,
+  storageBucket: config.firebase.storageBucket,
+  databaseURL: config.firebase.databaseURL,
+};
+
+// Initialize Firebase Admin SDK if not already initialized
+let bucket: admin.storage.Storage | null = null;
+
+try {
   if (!admin.apps.length) {
-    // Check if Firebase environment variables are properly configured
-    const projectId = process.env.FIREBASE_PROJECT_ID;
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY;
-    const storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
-
-    // Only initialize if all required Firebase credentials are present and valid
-    if (!projectId || projectId === 'your-firebase-project-id' || 
-        !clientEmail || clientEmail.includes('xxxxx') ||
-        !privateKey || privateKey.includes('YOUR_PRIVATE_KEY_HERE') ||
-        !storageBucket || storageBucket === 'your-project.appspot.com') {
-      console.warn('Firebase credentials not properly configured. Skipping Firebase initialization.');
-      return null;
-    }
+    // Service account configuration
+    const serviceAccount = {
+      type: "service_account",
+      project_id: config.firebase.projectId,
+      private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
+      private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+      client_email: process.env.FIREBASE_CLIENT_EMAIL,
+      client_id: process.env.FIREBASE_CLIENT_ID,
+      auth_uri: "https://accounts.google.com/o/oauth2/auth",
+      token_uri: "https://oauth2.googleapis.com/token",
+      auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+      client_x509_cert_url: `https://www.googleapis.com/robot/v1/metadata/x509/${encodeURIComponent(
+        process.env.FIREBASE_CLIENT_EMAIL || ""
+      )}`,
+    };
 
     admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId,
-        clientEmail,
-        privateKey: privateKey.replace(/\\n/g, '\n'),
-      }),
-      storageBucket,
+      credential: admin.credential.cert(serviceAccount),
+      storageBucket: config.firebase.storageBucket,
+      databaseURL: config.firebase.databaseURL,
     });
   }
-  return admin.app();
-};
 
-// Get Firebase Storage instance
-export const getFirebaseStorage = () => {
-  const app = initializeFirebase();
-  if (!app) {
-    throw new Error('Firebase is not initialized. Please configure Firebase credentials.');
+  // Get storage bucket
+  if (config.firebase.storageBucket) {
+    bucket = admin.storage();
   }
-  return getStorage(app);
+} catch (error) {
+  console.warn("Firebase initialization failed:", error);
+}
+
+export { bucket };
+
+// Environment variables for Firebase
+export const firebaseEnv = {
+  // Firebase Admin SDK
+  FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
+  FIREBASE_SERVICE_ACCOUNT_PATH: process.env.FIREBASE_SERVICE_ACCOUNT_PATH,
+  FIREBASE_STORAGE_BUCKET: process.env.FIREBASE_STORAGE_BUCKET,
+  FIREBASE_DATABASE_URL: process.env.FIREBASE_DATABASE_URL,
+
+  // Firebase Client SDK (for frontend)
+  REACT_APP_FIREBASE_API_KEY: process.env.REACT_APP_FIREBASE_API_KEY,
+  REACT_APP_FIREBASE_AUTH_DOMAIN: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  REACT_APP_FIREBASE_PROJECT_ID: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  REACT_APP_FIREBASE_STORAGE_BUCKET:
+    process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  REACT_APP_FIREBASE_MESSAGING_SENDER_ID:
+    process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  REACT_APP_FIREBASE_APP_ID: process.env.REACT_APP_FIREBASE_APP_ID,
+  REACT_APP_FIREBASE_MEASUREMENT_ID:
+    process.env.REACT_APP_FIREBASE_MEASUREMENT_ID,
 };
 
-export default admin;
+export default firebaseConfig;

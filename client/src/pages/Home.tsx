@@ -7,42 +7,25 @@ import {
   Clock,
   Star,
   ArrowRight,
-  GraduationCap,
   Shield,
   Globe,
   Zap,
-  Play,
   TrendingUp,
   Calendar,
   Eye,
   Heart,
-  MessageCircle,
-  ChevronRight,
-  ChevronLeft,
   CheckCircle,
   Sparkles,
   Target,
   Lightbulb,
   BookOpen as BookOpenIcon,
 } from "lucide-react";
-import { Carousel } from "react-responsive-carousel";
-import "react-responsive-carousel/lib/styles/carousel.min.css";
 import Footer from "../components/Footer";
 import EnquiryForm from "../components/EnquiryForm";
 import Modal from "../components/Modal";
-import { api, storiesApi, type Story } from "../utils/api";
-
-interface Course {
-  id: number;
-  name: string;
-  description: string;
-  duration: string;
-  price: number;
-  maxStudents: number;
-  isActive: boolean;
-  createdAt: string;
-  category: "Tech" | "Media" | "Vocational";
-}
+import LazyImage from "../components/LazyImage";
+import CourseService, { Course } from "../services/courseService";
+import StoriesService, { Story } from "../services/storiesService";
 
 const Home: React.FC = () => {
   const [enquiryOpen, setEnquiryOpen] = React.useState(false);
@@ -51,11 +34,7 @@ const Home: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   // Dynamic background images for hero
-  const heroImages = [
-    "/images/1.jpeg",
-    "/images/2.jpeg",
-    "/images/3.jpeg",
-  ];
+  const heroImages = ["/images/1.jpeg", "/images/2.jpeg", "/images/3.jpeg"];
   const [bgIndex, setBgIndex] = useState(0);
 
   useEffect(() => {
@@ -66,29 +45,33 @@ const Home: React.FC = () => {
   }, [heroImages.length]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [coursesResponse, storiesResponse] = await Promise.all([
-          api.get("/courses"),
-          storiesApi.getFeaturedStories(),
-        ]);
-
-        // Handle courses response structure
-        const courses = coursesResponse.data?.data?.courses || [];
-        setCourses(courses.slice(0, 6));
-
-        // Handle stories response structure (featured stories returns direct array)
-        const stories = Array.isArray(storiesResponse)
-          ? storiesResponse
-          : (storiesResponse as any)?.stories || [];
-        setFeaturedStories(stories.slice(0, 3));
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
+    // Set up real-time subscriptions
+    const unsubscribeCourses = CourseService.subscribeToAllCourses(
+      (courses) => {
+        // Get only featured courses (limit to 6)
+        const featuredCourses = courses
+          .filter((course) => course.isActive)
+          .slice(0, 6);
+        setCourses(featuredCourses);
         setLoading(false);
+      },
+      undefined, // category
+      true // isActive
+    );
+
+    const unsubscribeStories = StoriesService.subscribeToFeaturedStories(
+      (stories) => {
+        setFeaturedStories(stories.slice(0, 3));
       }
+    );
+
+    console.log("Real-time subscriptions set up successfully");
+
+    // Cleanup subscriptions on unmount
+    return () => {
+      unsubscribeCourses();
+      unsubscribeStories();
     };
-    fetchData();
   }, []);
 
   const categoryConfig = {
@@ -309,10 +292,11 @@ const Home: React.FC = () => {
                     >
                       {story.featuredImage && (
                         <div className="relative h-48 overflow-hidden">
-                          <img
+                          <LazyImage
                             src={story.featuredImage}
                             alt={story.title || "Story"}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            loading="lazy"
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
                         </div>
@@ -337,11 +321,7 @@ const Home: React.FC = () => {
                         <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                           <div className="flex items-center">
                             <Users className="h-4 w-4 mr-1" />
-                            {story.author
-                              ? `${story.author.firstName || ""} ${story.author.lastName || ""
-                                }`.trim() || "Unknown Author"
-                              : `${story.firstName || ""} ${story.lastName || ""
-                                }`.trim() || "Unknown Author"}
+                            {story.authorName || "Unknown Author"}
                           </div>
                           <div className="flex items-center">
                             <Calendar className="h-4 w-4 mr-1" />

@@ -5,20 +5,18 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import { api } from "../utils/api";
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  User as FirebaseUser,
+  updateProfile as updateFirebaseProfile,
+} from "firebase/auth";
+import { auth } from "../config/firebase";
+import { UserService, User } from "../services/userService";
 
-interface User {
-  id: number;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: "user" | "admin" | "trainer";
-  phone?: string;
-  address?: string;
-  specialization?: string;
-  bio?: string;
-  profileImage?: string;
-}
+// Use the User interface from userService
 
 interface RegisterData {
   email: string;
@@ -31,16 +29,16 @@ interface RegisterData {
 
 interface AuthContextType {
   user: User | null;
-  token: string | null;
+  firebaseUser: FirebaseUser | null;
   loading: boolean;
   isAuthenticated: boolean;
   hasRole: (role: string | string[]) => boolean;
-  login: (email: string, password: string) => Promise<any>;
-  logout: () => void;
-  register: (userData: RegisterData) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
+  logout: () => Promise<void>;
+  register: (userData: RegisterData) => Promise<User>;
   refreshUser: () => Promise<void>;
   updateProfile: (userData: Partial<User>) => Promise<void>;
-  refreshToken: () => Promise<void>;
+  updateUser: (userData: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -59,13 +57,11 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(
-    localStorage.getItem("token")
-  );
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Check if user is authenticated
-  const isAuthenticated = !!user && !!token;
+  const isAuthenticated = !!user && !!firebaseUser;
 
   // Role-based access control
   const hasRole = (role: string | string[]): boolean => {
@@ -77,181 +73,223 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   useEffect(() => {
-    let isMounted = true;
-    let retryTimeout: NodeJS.Timeout;
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setLoading(true);
 
-    const initializeAuth = async () => {
-      const storedToken = localStorage.getItem("token");
-      console.log("AuthContext - Stored token:", storedToken);
+      if (firebaseUser) {
+        setFirebaseUser(firebaseUser);
 
-      if (storedToken && isMounted) {
         try {
-          // Set token in API headers
-          api.defaults.headers.common[
-            "Authorization"
-          ] = `Bearer ${storedToken}`;
+          // Get user data from Firestore
+          let userData = await UserService.getUserByEmail(firebaseUser.email!);
 
-          console.log("AuthContext - Calling /auth/profile");
-          const response = await api.get("/auth/profile");
-          console.log("AuthContext - Profile response:", response.data);
-
-          if (!isMounted) return;
-
-          // Check if response has the expected structure
-          if (
-            response.data.success &&
-            response.data.data &&
-            response.data.data.user
-          ) {
-            setUser(response.data.data.user);
-            setToken(storedToken);
+          if (!userData) {
+            // If user doesn't exist in Firestore, create a basic profile
             console.log(
-              "AuthContext - User set successfully:",
-              response.data.data.user
+              "User exists in Firebase Auth but not in Firestore. Creating user profile..."
             );
-          } else {
-            console.error(
-              "AuthContext - Unexpected response structure:",
-              response.data
-            );
-            throw new Error("Invalid response structure");
-          }
-        } catch (error: any) {
-          if (!isMounted) return;
 
-          // Handle rate limiting specifically
-          if (error.response?.status === 429) {
-            console.warn(
-              "AuthContext - Rate limited, retrying in 5 seconds..."
-            );
-            retryTimeout = setTimeout(() => {
-              if (isMounted) {
-                initializeAuth();
-              }
-            }, 5000);
-            return;
+            // Create a basic user profile in Firestore
+            const userCreateData: any = {
+              email: firebaseUser.email!,
+              password: "", // Password is handled by Firebase Auth
+              firstName: firebaseUser.displayName?.split(" ")[0] || "User",
+              lastName:
+                firebaseUser.displayName?.split(" ").slice(1).join(" ") || "",
+            };
+
+            // Only add phone if it exists (Firestore doesn't allow undefined values)
+            if (firebaseUser.phoneNumber) {
+              userCreateData.phone = firebaseUser.phoneNumber;
+            }
+
+            userData = await UserService.createUser(userCreateData);
+
+            console.log("User profile created successfully:", userData);
           }
 
-          // Token is invalid or expired
-          console.error("AuthContext - Token validation failed:", error);
-          localStorage.removeItem("token");
-          setToken(null);
+          setUser(userData);
+        } catch (error) {
+          console.error("Error fetching/creating user data:", error);
           setUser(null);
-          delete api.defaults.headers.common["Authorization"];
         }
+      } else {
+        setFirebaseUser(null);
+        setUser(null);
       }
-      if (isMounted) {
-        setLoading(false);
-      }
-    };
 
-    // Add a small delay to prevent rapid successive calls
-    const timeoutId = setTimeout(() => {
-      initializeAuth();
-    }, 100);
+      setLoading(false);
+    });
 
-    return () => {
-      isMounted = false;
-      clearTimeout(timeoutId);
-      if (retryTimeout) {
-        clearTimeout(retryTimeout);
-      }
-    };
+    return () => unsubscribe();
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<User> => {
     try {
-      const response = await api.post("/auth/login", { email, password });
-      const { user, token } = response.data.data;
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      const firebaseUser = userCredential.user;
 
-      setUser(user);
-      setToken(token);
-      localStorage.setItem("token", token);
+      // Get user data from Firestore
+      let userData = await UserService.getUserByEmail(firebaseUser.email!);
 
-      // Set default authorization header
-      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      if (!userData) {
+        // If user doesn't exist in Firestore, create a basic profile
+        console.log(
+          "User exists in Firebase Auth but not in Firestore. Creating user profile..."
+        );
 
-      return user;
+        // Create a basic user profile in Firestore
+        const userCreateData: any = {
+          email: firebaseUser.email!,
+          password: "", // Password is handled by Firebase Auth
+          firstName: firebaseUser.displayName?.split(" ")[0] || "User",
+          lastName:
+            firebaseUser.displayName?.split(" ").slice(1).join(" ") || "",
+        };
+
+        // Only add phone if it exists (Firestore doesn't allow undefined values)
+        if (firebaseUser.phoneNumber) {
+          userCreateData.phone = firebaseUser.phoneNumber;
+        }
+
+        userData = await UserService.createUser(userCreateData);
+
+        console.log("User profile created successfully:", userData);
+      }
+
+      return userData;
     } catch (error: any) {
-      const message =
-        error.response?.data?.message ||
-        "Login failed. Please check your credentials.";
+      let message = "Login failed. Please check your credentials.";
+
+      if (error.code === "auth/user-not-found") {
+        message = "No account found with this email address.";
+      } else if (error.code === "auth/wrong-password") {
+        message = "Incorrect password.";
+      } else if (error.code === "auth/invalid-email") {
+        message = "Invalid email address.";
+      } else if (error.code === "auth/too-many-requests") {
+        message = "Too many failed attempts. Please try again later.";
+      }
+
       throw new Error(message);
     }
   };
 
-  const register = async (userData: RegisterData) => {
+  const register = async (userData: RegisterData): Promise<User> => {
     try {
-      const response = await api.post("/auth/register", userData);
-      const { user, token } = response.data.data;
+      // Create Firebase Auth user
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        userData.email,
+        userData.password
+      );
+      const firebaseUser = userCredential.user;
 
-      setUser(user);
-      setToken(token);
-      localStorage.setItem("token", token);
+      // Update Firebase profile with display name
+      await updateFirebaseProfile(firebaseUser, {
+        displayName: `${userData.firstName} ${userData.lastName}`,
+      });
 
-      // Set default authorization header
-      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      // Create user profile in Firestore
+      const newUser = await UserService.createUser({
+        email: userData.email,
+        password: userData.password, // This won't be stored in Firestore
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        phone: userData.phone,
+        address: userData.address,
+      });
+
+      return newUser;
     } catch (error: any) {
-      const message =
-        error.response?.data?.message ||
-        "Registration failed. Please try again.";
+      let message = "Registration failed. Please try again.";
+
+      if (error.code === "auth/email-already-in-use") {
+        message = "An account with this email already exists.";
+      } else if (error.code === "auth/invalid-email") {
+        message = "Invalid email address.";
+      } else if (error.code === "auth/weak-password") {
+        message = "Password should be at least 6 characters.";
+      }
+
       throw new Error(message);
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem("token");
-    delete api.defaults.headers.common["Authorization"];
+  const logout = async (): Promise<void> => {
+    try {
+      await signOut(auth);
+      setUser(null);
+      setFirebaseUser(null);
 
-    // Clear any cached data
-    sessionStorage.clear();
+      // Clear any cached data
+      sessionStorage.clear();
+    } catch (error) {
+      console.error("Error signing out:", error);
+      throw new Error("Failed to sign out. Please try again.");
+    }
   };
 
   const updateProfile = async (userData: Partial<User>) => {
     try {
-      const response = await api.put("/auth/profile", userData);
-      const updatedUser = response.data.data.user;
+      if (!user?.id) {
+        throw new Error("User not authenticated");
+      }
+
+      // Update user in Firestore
+      await UserService.updateUser(user.id, userData);
+
+      // Update local user state
+      const updatedUser = { ...user, ...userData };
       setUser(updatedUser);
+
+      // Update Firebase profile if display name changed
+      if (userData.firstName || userData.lastName) {
+        const displayName = `${userData.firstName || user.firstName} ${
+          userData.lastName || user.lastName
+        }`;
+        await updateFirebaseProfile(firebaseUser!, { displayName });
+      }
     } catch (error: any) {
       const message =
-        error.response?.data?.message ||
-        "Profile update failed. Please try again.";
+        error.message || "Profile update failed. Please try again.";
       throw new Error(message);
     }
   };
 
-  const refreshToken = async () => {
-    try {
-      const response = await api.post("/auth/refresh");
-      const { token: newToken } = response.data.data;
-
-      setToken(newToken);
-      localStorage.setItem("token", newToken);
-      api.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
-    } catch (error: any) {
-      // If refresh fails, logout the user
-      logout();
-      throw new Error("Session expired. Please login again.");
+  const updateUser = (userData: Partial<User>) => {
+    if (user) {
+      setUser({ ...user, ...userData });
     }
   };
 
   const refreshUser = async () => {
     try {
-      const response = await api.get("/auth/profile");
-      const { user } = response.data.data;
-      setUser(user);
-    } catch (error: any) {
+      if (!firebaseUser?.email) {
+        throw new Error("No authenticated user");
+      }
+
+      const userData = await UserService.getUserByEmail(firebaseUser.email);
+
+      if (userData) {
+        setUser(userData);
+      } else {
+        throw new Error("User profile not found");
+      }
+    } catch (error) {
       console.error("Failed to refresh user profile:", error);
-      logout();
+      await logout();
       throw new Error("Failed to refresh user profile.");
     }
   };
 
   const value: AuthContextType = {
     user,
-    token,
+    firebaseUser,
     loading,
     isAuthenticated,
     hasRole,
@@ -260,7 +298,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     register,
     refreshUser,
     updateProfile,
-    refreshToken,
+    updateUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

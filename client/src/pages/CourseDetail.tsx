@@ -30,13 +30,15 @@ import {
 import Footer from "../components/Footer";
 
 interface Course {
-  id: number;
-  name: string;
+  id: number | string;
+  name?: string; // Made optional to handle both name and title fields
+  title?: string; // Added title field for Firestore compatibility
   description: string;
   duration: string;
   price: number;
   maxStudents: number;
-  isActive: boolean;
+  isActive?: boolean; // Made optional to handle both isActive and status fields
+  status?: string; // Added status field for backward compatibility
   createdAt: string;
 }
 
@@ -75,11 +77,8 @@ const CourseDetail: React.FC = () => {
   const [paymentStep, setPaymentStep] = useState<
     "form" | "payment" | "complete"
   >("form");
-  const [paymentData, setPaymentData] = useState<any>(null);
-  const [paymentLoading, setPaymentLoading] = useState(false);
   const [showInstallmentModal, setShowInstallmentModal] = useState(false);
   const [hasApplied, setHasApplied] = useState(false);
-  const [checkingApplication, setCheckingApplication] = useState(false);
 
   const {
     register,
@@ -93,18 +92,110 @@ const CourseDetail: React.FC = () => {
       const response = await api.get(`/courses/${id}`);
       setCourse(response.data.data.course);
     } catch (error) {
-      toast.error("Failed to fetch course details");
-      navigate("/courses");
+      console.log("API error, checking sample courses");
+      // Check if this is a sample course
+      if (id) {
+        const sampleCourse = getSampleCourseById(id);
+        if (sampleCourse) {
+          setCourse(sampleCourse);
+        } else {
+          toast.error("Failed to fetch course details");
+          navigate("/courses");
+        }
+      } else {
+        toast.error("Invalid course ID");
+        navigate("/courses");
+      }
     } finally {
       setLoading(false);
     }
   }, [id, navigate]);
 
+  const getSampleCourseById = (courseId: string): Course | null => {
+    const sampleCourses = [
+      {
+        id: 1,
+        name: "Web Development Fundamentals",
+        description:
+          "Learn the basics of web development including HTML, CSS, and JavaScript. Perfect for beginners who want to start their journey in web development.",
+        duration: "8 weeks",
+        price: 299,
+        maxStudents: 25,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        category: "Tech",
+      },
+      {
+        id: 2,
+        name: "Digital Marketing Mastery",
+        description:
+          "Comprehensive digital marketing course covering SEO, social media marketing, content marketing, and analytics. Learn to create effective digital marketing campaigns.",
+        duration: "6 weeks",
+        price: 199,
+        maxStudents: 30,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        category: "Media",
+      },
+      {
+        id: 3,
+        name: "Graphic Design Essentials",
+        description:
+          "Learn professional graphic design principles, tools, and techniques. Create stunning visuals for print and digital media using industry-standard software.",
+        duration: "10 weeks",
+        price: 399,
+        maxStudents: 20,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        category: "Media",
+      },
+      {
+        id: 4,
+        name: "Mobile App Development",
+        description:
+          "Build native and cross-platform mobile applications using React Native. Learn to create apps for both iOS and Android platforms.",
+        duration: "12 weeks",
+        price: 599,
+        maxStudents: 15,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        category: "Tech",
+      },
+      {
+        id: 5,
+        name: "Photography & Videography",
+        description:
+          "Professional photography and videography course covering camera techniques, lighting, composition, and post-production editing.",
+        duration: "8 weeks",
+        price: 349,
+        maxStudents: 18,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        category: "Media",
+      },
+      {
+        id: 6,
+        name: "Data Science & Analytics",
+        description:
+          "Learn data analysis, visualization, and machine learning using Python and popular data science libraries. Work with real datasets and build predictive models.",
+        duration: "14 weeks",
+        price: 799,
+        maxStudents: 12,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        category: "Tech",
+      },
+    ];
+
+    return (
+      sampleCourses.find((course) => course.id.toString() === courseId) || null
+    );
+  };
+
   // Check if user has already applied for this course
   const checkApplicationStatus = useCallback(async () => {
     if (!user || !id) return;
 
-    setCheckingApplication(true);
     try {
       const response = await api.get(`/registrations/check/${id}`);
       if (response.data.success) {
@@ -115,8 +206,6 @@ const CourseDetail: React.FC = () => {
       if (error.response?.status !== 404) {
         console.error("Error checking application status:", error);
       }
-    } finally {
-      setCheckingApplication(false);
     }
   }, [user, id]);
 
@@ -183,11 +272,6 @@ Click "OK" to proceed with payment.
       });
 
       if (paymentResponse.data.success) {
-        setPaymentData({
-          ...data,
-          paymentReference: paymentResponse.data.data.reference,
-          authorizationUrl: paymentResponse.data.data.authorizationUrl,
-        });
         setPaymentStep("payment");
 
         // Redirect to Paystack payment page
@@ -201,64 +285,6 @@ Click "OK" to proceed with payment.
       toast.error(error.response?.data?.message || "Application failed");
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const handlePaymentSuccess = async (reference: string) => {
-    setPaymentLoading(true);
-    try {
-      // Verify payment
-      const verificationResponse = await api.post("/payments/verify", {
-        reference,
-      });
-
-      if (verificationResponse.data.success) {
-        // Submit application with payment confirmation
-        await api.post("/registrations", {
-          courseId: parseInt(id!),
-          ...paymentData,
-          notes: `Application submitted with payment reference: ${reference} on ${new Date().toLocaleString()}`,
-        });
-
-        setPaymentStep("complete");
-        toast.success(
-          "🎉 Payment successful! Application submitted successfully!",
-          {
-            duration: 5000,
-            icon: "🎓",
-          }
-        );
-
-        const successMessage = `
-✅ Payment & Application Successful!
-
-Course: ${course?.name}
-Payment Reference: ${reference}
-Application Fee: ₵100
-
-📧 You will receive a confirmation email shortly
-📱 Check your student dashboard for updates
-⏰ Review process takes 24-48 hours
-
-Would you like to go to your Student Dashboard now?
-        `;
-
-        if (window.confirm(successMessage)) {
-          navigate("/dashboard");
-        } else {
-          navigate("/courses");
-        }
-      } else {
-        toast.error("Payment verification failed");
-        setPaymentStep("form");
-      }
-    } catch (error: any) {
-      toast.error(
-        error.response?.data?.message || "Payment verification failed"
-      );
-      setPaymentStep("form");
-    } finally {
-      setPaymentLoading(false);
     }
   };
 
@@ -319,7 +345,7 @@ Would you like to go to your Student Dashboard now?
               Course Details
             </div>
             <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
-              {course.name}
+              {course.name || course.title}
             </h1>
             <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed mb-8">
               {course.description}
@@ -898,7 +924,7 @@ Would you like to go to your Student Dashboard now?
                         </label>
                         <select
                           {...register("gender", {
-                            required: "Gender is required"
+                            required: "Gender is required",
                           })}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
                         >
@@ -1058,7 +1084,13 @@ Would you like to go to your Student Dashboard now?
                     <div className="space-y-4">
                       <button
                         type="submit"
-                        disabled={submitting || !course.isActive}
+                        disabled={
+                          submitting ||
+                          !(
+                            course.isActive === true ||
+                            course.status === "active"
+                          )
+                        }
                         className="w-full bg-gradient-to-r from-primary to-secondary text-white font-semibold py-3 px-6 rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none group"
                       >
                         {submitting ? (
@@ -1074,7 +1106,9 @@ Would you like to go to your Student Dashboard now?
                         )}
                       </button>
 
-                      {!course.isActive && (
+                      {!(
+                        course.isActive === true || course.status === "active"
+                      ) && (
                         <div className="bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-xl p-4">
                           <AlertCircle className="h-5 w-5 text-red-500 mb-2" />
                           <p className="text-red-800 text-sm font-medium">
@@ -1138,8 +1172,10 @@ Would you like to go to your Student Dashboard now?
         <CourseFeeInstallmentModal
           isOpen={showInstallmentModal}
           onClose={() => setShowInstallmentModal(false)}
-          courseId={course.id}
-          courseName={course.name}
+          courseId={
+            typeof course.id === "string" ? parseInt(course.id) : course.id
+          }
+          courseName={course.name || course.title || "Unknown Course"}
           courseFee={course.price}
           onInstallmentPlanCreated={() => {
             // Refresh any necessary data

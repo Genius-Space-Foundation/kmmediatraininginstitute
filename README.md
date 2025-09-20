@@ -1,6 +1,6 @@
 # KM Media Course Registration System
 
-A secure web application for course registration with JWT authentication, built with React, Node.js, and SQLite.
+A secure web application for course registration with JWT authentication, built with React, Node.js, and PostgreSQL (migrating to Firebase Firestore).
 
 ## Features
 
@@ -47,7 +47,7 @@ A secure web application for course registration with JWT authentication, built 
 
 - **Node.js** with Express
 - **TypeScript** for type safety
-- **SQLite** database
+- **PostgreSQL** database (migrating to Firebase Firestore)
 - **JWT** for authentication
 - **bcryptjs** for password hashing
 - **express-validator** for input validation
@@ -90,17 +90,24 @@ A secure web application for course registration with JWT authentication, built 
 
    ```bash
    cd server
-   cp env.example .env
+   cp env.firebase.example .env
    ```
 
    Edit the `.env` file with your configuration:
 
    ```env
-   PORT=5000
+   PORT=3001
    NODE_ENV=development
    JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
-   JWT_EXPIRES_IN=24h
-   DB_PATH=./database.sqlite
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_NAME=kmmedia
+   DB_USER=your_db_user
+   DB_PASSWORD=your_db_password
+   FIREBASE_PROJECT_ID=your-project-id
+   FIREBASE_CLIENT_EMAIL=your-service-account-email
+   FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-----END PRIVATE KEY-----\n"
+   FIREBASE_DATABASE_URL=https://your-project-id.firebaseio.com
    ```
 
 4. **Start the development servers**
@@ -108,7 +115,7 @@ A secure web application for course registration with JWT authentication, built 
    npm run dev
    ```
 
-This will start both the backend server (port 5000) and frontend development server (port 3000).
+This will start both the backend server (port 3001) and frontend development server (port 3000).
 
 ### Default Admin Account
 
@@ -197,13 +204,22 @@ npm run build       # Build for production
 
 ### Database
 
-The application uses SQLite for simplicity. The database file (`database.sqlite`) is automatically created when the server starts.
+The application currently uses PostgreSQL and is migrating to Firebase Firestore for real-time synchronization and serverless scaling. See the Firebase migration documentation for setup instructions.
+
+## Firebase Migration
+
+This application is currently migrating from PostgreSQL to Firebase Firestore. See the following documentation:
+
+- [Firebase Setup Guide](FIREBASE_SETUP_GUIDE.md) - Complete setup instructions
+- [Firebase Quick Start](FIREBASE_QUICK_START.md) - 5-minute setup guide
+- [Migration Execution Guide](MIGRATION_EXECUTION_GUIDE.md) - Step-by-step migration process
+- [Firebase Performance Guide](FIRESTORE_PERFORMANCE_GUIDE.md) - Performance optimization tips
 
 ## Production Deployment
 
 1. **Environment Variables**: Update all environment variables for production
 2. **JWT Secret**: Use a strong, unique JWT secret
-3. **Database**: Consider migrating to PostgreSQL or MySQL for production
+3. **Database**: Complete Firebase Firestore migration
 4. **HTTPS**: Ensure SSL/TLS is configured
 5. **Build**: Run `npm run build` in both client and server directories
 

@@ -90,33 +90,53 @@ const Register: React.FC = () => {
         address: data.address,
       });
 
-      // Enhanced success message
+      // Set first time user flag
+      localStorage.setItem("firstTimeUser", "true");
+
+      // Enhanced success message with better UX
       toast.success("🎉 Registration successful! Welcome to KM Media!", {
         duration: 5000,
         icon: "🎓",
       });
 
-      // Enhanced confirmation dialog
-      const successMessage = `
-🎓 Welcome to KM Media!
+      // Show welcome modal instead of confirm dialog
+      setTimeout(() => {
+        const welcomeModal = document.createElement("div");
+        welcomeModal.className =
+          "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50";
+        welcomeModal.innerHTML = `
+          <div class="bg-white rounded-2xl p-8 max-w-md mx-4 text-center shadow-2xl">
+            <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">Welcome to KM Media!</h2>
+            <p class="text-gray-600 mb-6">Your account has been created successfully</p>
+            <div class="bg-blue-50 rounded-lg p-4 mb-6 text-left">
+              <p class="text-sm text-gray-700"><strong>Name:</strong> ${data.firstName} ${data.lastName}</p>
+              <p class="text-sm text-gray-700"><strong>Email:</strong> ${data.email}</p>
+            </div>
+            <div class="space-y-3">
+              <button onclick="window.location.href='/dashboard'" class="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                Go to Dashboard
+              </button>
+              <button onclick="window.location.href='/courses'" class="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium">
+                Browse Courses
+              </button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(welcomeModal);
 
-✅ Account created successfully
-👤 Name: ${data.firstName} ${data.lastName}
-📧 Email: ${data.email}
-
-🚀 What's next?
-• Explore our course catalog
-• Access your personalized dashboard
-• Start your learning journey
-
-Would you like to go to your Student Dashboard now?
-      `;
-
-      if (window.confirm(successMessage)) {
-        navigate("/dashboard");
-      } else {
-        navigate("/courses");
-      }
+        // Auto-remove modal after 10 seconds
+        setTimeout(() => {
+          if (document.body.contains(welcomeModal)) {
+            document.body.removeChild(welcomeModal);
+            navigate("/dashboard");
+          }
+        }, 10000);
+      }, 1000);
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Registration failed");
     } finally {

@@ -635,38 +635,49 @@ const AdminCourses: React.FC = () => {
                   )}
                 </div>
 
-                <div className="flex items-center space-x-2">
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() =>
+                        navigate(`/admin/courses/${course.id}/edit`)
+                      }
+                      className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => openTrainerModal(course)}
+                      className="flex-1 px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      <Users className="h-4 w-4 mr-1" />
+                      Assign Trainer
+                    </button>
+                    <button
+                      onClick={() =>
+                        toggleCourseStatus(course.id, course.isActive)
+                      }
+                      className={`flex-1 px-3 py-2 text-sm rounded-lg transition-colors ${
+                        course.isActive
+                          ? "bg-yellow-600 text-white hover:bg-yellow-700"
+                          : "bg-green-600 text-white hover:bg-green-700"
+                      }`}
+                    >
+                      {course.isActive ? "Deactivate" : "Activate"}
+                    </button>
+                    <button
+                      onClick={() => deleteCourse(course.id)}
+                      className="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                   <button
-                    onClick={() => navigate(`/admin/courses/${course.id}/edit`)}
-                    className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    onClick={() => navigate(`/enhanced-learning/${course.id}`)}
+                    className="w-full px-3 py-2 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all flex items-center justify-center"
                   >
-                    <Edit className="h-4 w-4 mr-1" />
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => openTrainerModal(course)}
-                    className="flex-1 px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                  >
-                    <Users className="h-4 w-4 mr-1" />
-                    Assign Trainer
-                  </button>
-                  <button
-                    onClick={() =>
-                      toggleCourseStatus(course.id, course.isActive)
-                    }
-                    className={`flex-1 px-3 py-2 text-sm rounded-lg transition-colors ${
-                      course.isActive
-                        ? "bg-yellow-600 text-white hover:bg-yellow-700"
-                        : "bg-green-600 text-white hover:bg-green-700"
-                    }`}
-                  >
-                    {course.isActive ? "Deactivate" : "Activate"}
-                  </button>
-                  <button
-                    onClick={() => deleteCourse(course.id)}
-                    className="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                  >
-                    <Trash2 className="h-4 w-4" />
+                    <BookOpen className="h-4 w-4 mr-1" />
+                    Enhanced Learning
                   </button>
                 </div>
               </div>

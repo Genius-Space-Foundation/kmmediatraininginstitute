@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import { body, validationResult } from "express-validator";
 import { generateToken } from "../middleware/auth";
 import { RegisterRequest, LoginRequest } from "../types";
-import { userRepository } from "../repositories/UserRepository";
+import { userService } from "../services/UserService";
 import { config } from "../config";
 
 const router = Router();
@@ -64,7 +64,7 @@ router.post(
       }: RegisterRequest = req.body;
 
       // Check if user already exists
-      const existingUser = await userRepository.findByEmail(email);
+      const existingUser = await userService.getUserByEmail(email);
       if (existingUser) {
         return res.status(400).json({
           success: false,
@@ -72,17 +72,12 @@ router.post(
         });
       }
 
-      // Hash password
-      const saltRounds = 10;
-      const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-      // Create new user
-      const newUser = await userRepository.create({
+      // Create new user (password will be hashed by the service)
+      const newUser = await userService.register({
         email,
-        password: hashedPassword,
+        password,
         firstName,
         lastName,
-        role: "user",
         phone: phone || undefined,
         address: address || undefined,
       });
@@ -133,7 +128,7 @@ router.post("/login", loginValidation, async (req: Request, res: Response) => {
     const { email, password }: LoginRequest = req.body;
 
     // Find user by email
-    const user = await userRepository.findByEmail(email);
+    const user = await userService.getUserByEmail(email);
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -198,7 +193,7 @@ router.get("/profile", async (req: Request, res: Response) => {
     try {
       const decoded = jwt.verify(token, config.jwt.secret);
 
-      const user = await userRepository.findById(decoded.id);
+      const user = await userService.getUserById(decoded.id);
       if (!user) {
         return res.status(404).json({
           success: false,
@@ -264,7 +259,7 @@ router.put("/profile", async (req: Request, res: Response) => {
       }
 
       // Update user profile
-      const updatedUser = await userRepository.updateProfile(decoded.id, {
+      const updatedUser = await userService.updateUser(decoded.id, {
         firstName,
         lastName,
         phone: phone || null,

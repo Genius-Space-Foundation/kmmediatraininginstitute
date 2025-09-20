@@ -171,7 +171,7 @@ const CourseFeeInstallmentModal: React.FC<CourseFeeInstallmentModalProps> = ({
           </h3>
           <p className="text-gray-600">
             Total Course Fee:{" "}
-            <span className="font-semibold">₵{courseFee.toLocaleString()}</span>
+            <span className="font-semibold">GHC{courseFee.toLocaleString()}</span>
           </p>
         </div>
 
@@ -198,7 +198,7 @@ const CourseFeeInstallmentModal: React.FC<CourseFeeInstallmentModalProps> = ({
                 <div>
                   <span className="text-gray-600">Installment Amount:</span>
                   <p className="font-medium">
-                    ₵{installmentPlan.installmentAmount.toLocaleString()}
+                    GHC{installmentPlan.installmentAmount.toLocaleString()}
                   </p>
                 </div>
                 <div>
@@ -211,7 +211,7 @@ const CourseFeeInstallmentModal: React.FC<CourseFeeInstallmentModalProps> = ({
                 <div>
                   <span className="text-gray-600">Remaining Balance:</span>
                   <p className="font-medium text-red-600">
-                    ₵{installmentPlan.remainingBalance.toLocaleString()}
+                    GHC{installmentPlan.remainingBalance.toLocaleString()}
                   </p>
                 </div>
                 <div>
@@ -246,7 +246,7 @@ const CourseFeeInstallmentModal: React.FC<CourseFeeInstallmentModalProps> = ({
                 >
                   {loading
                     ? "Processing..."
-                    : `Pay Next Installment (₵${installmentPlan.installmentAmount.toLocaleString()})`}
+                    : `Pay Next Installment (GHC${installmentPlan.installmentAmount.toLocaleString()})`}
                 </button>
               )}
 
@@ -318,7 +318,7 @@ const CourseFeeInstallmentModal: React.FC<CourseFeeInstallmentModalProps> = ({
                   <div className="flex justify-between">
                     <span>Total Course Fee:</span>
                     <span className="font-medium">
-                      ₵{courseFee.toLocaleString()}
+                      GHC{courseFee.toLocaleString()}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -330,8 +330,7 @@ const CourseFeeInstallmentModal: React.FC<CourseFeeInstallmentModalProps> = ({
                   <div className="flex justify-between">
                     <span>Installment Amount:</span>
                     <span className="font-medium">
-                      ₵
-                      {Math.ceil(
+                      GHC{Math.ceil(
                         courseFee / formData.totalInstallments
                       ).toLocaleString()}
                     </span>
@@ -370,5 +369,9 @@ const CourseFeeInstallmentModal: React.FC<CourseFeeInstallmentModalProps> = ({
 };
 
 export default CourseFeeInstallmentModal;
+
+
+
+
 
 

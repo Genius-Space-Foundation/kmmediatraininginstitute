@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
-import { storiesApi, type Story } from "../utils/api";
+import StoriesService, { Story } from "../services/storiesService";
 import {
   Heart,
   Eye,
@@ -77,17 +77,17 @@ const Stories: React.FC = () => {
   const fetchStories = useCallback(async () => {
     try {
       setLoading(true);
-      const params: any = {
-        page: currentPage,
-        limit: 9,
-      };
 
-      if (selectedCategory) params.category = selectedCategory;
-      if (searchTerm) params.search = searchTerm;
+      // Use Firestore service to fetch stories
+      const storiesResult = await StoriesService.getStories(
+        currentPage,
+        9, // limit
+        selectedCategory,
+        searchTerm
+      );
 
-      const response = await storiesApi.getStories(params);
-      setStories(response.stories || []);
-      setTotalPages(response.pagination?.totalPages || 1);
+      setStories(storiesResult.stories || []);
+      setTotalPages(Math.ceil((storiesResult.total || 0) / 9) || 1);
     } catch (error) {
       console.error("Error fetching stories:", error);
     } finally {
@@ -100,14 +100,55 @@ const Stories: React.FC = () => {
     fetchFeaturedStories();
   }, [fetchStories]);
 
+  // Set up real-time subscription for stories
+  useEffect(() => {
+    const unsubscribe = StoriesService.subscribeToPublishedStories(
+      (stories) => {
+        let filteredStories = stories;
+
+        // Apply category filter if selected
+        if (selectedCategory) {
+          filteredStories = stories.filter(
+            (story) => story.category === selectedCategory
+          );
+        }
+
+        // Apply search filter if searchTerm exists
+        if (searchTerm) {
+          const searchTermLower = searchTerm.toLowerCase();
+          filteredStories = filteredStories.filter(
+            (story) =>
+              story.title.toLowerCase().includes(searchTermLower) ||
+              story.content.toLowerCase().includes(searchTermLower) ||
+              story.excerpt.toLowerCase().includes(searchTermLower) ||
+              story.category.toLowerCase().includes(searchTermLower)
+          );
+        }
+
+        // Apply pagination
+        const startIndex = (currentPage - 1) * 9;
+        const endIndex = startIndex + 9;
+        const paginatedStories = filteredStories.slice(startIndex, endIndex);
+
+        setStories(paginatedStories);
+        setTotalPages(Math.ceil(filteredStories.length / 9));
+        setLoading(false);
+      },
+      selectedCategory || undefined
+    );
+
+    console.log("Real-time stories subscription set up");
+
+    return () => {
+      unsubscribe();
+    };
+  }, [currentPage, selectedCategory, searchTerm]);
+
   const fetchFeaturedStories = async () => {
     try {
-      const response = await storiesApi.getFeaturedStories();
-      // Featured stories API returns direct array, not wrapped in stories property
-      const stories = Array.isArray(response)
-        ? response
-        : (response as any)?.stories || [];
-      setFeaturedStories(stories);
+      // Use Firestore service to fetch featured stories
+      const stories = await StoriesService.getFeaturedStories(3);
+      setFeaturedStories(stories || []);
     } catch (error) {
       console.error("Error fetching featured stories:", error);
     }
@@ -253,7 +294,9 @@ const Stories: React.FC = () => {
                           </span>
                           <span className="text-xs text-gray-500 flex items-center">
                             <Clock className="mr-1 h-3 w-3" />
-                            {formatDate(story.publishedAt || story.createdAt)}
+                            {formatDate(
+                              story.publishedAt || story.createdAt || ""
+                            )}
                           </span>
                         </div>
 
@@ -268,9 +311,7 @@ const Stories: React.FC = () => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center text-sm text-gray-500">
                             <User className="mr-1 h-4 w-4" />
-                            {`${story.firstName || ""} ${
-                              story.lastName || ""
-                            }`.trim() || "Unknown Author"}
+                            {story.authorName || "Unknown Author"}
                           </div>
                           <div className="flex items-center space-x-4 text-sm text-gray-500">
                             <span className="flex items-center">
@@ -424,7 +465,9 @@ const Stories: React.FC = () => {
                           </span>
                           <span className="text-xs text-gray-500 flex items-center">
                             <Clock className="mr-1 h-3 w-3" />
-                            {formatDate(story.publishedAt || story.createdAt)}
+                            {formatDate(
+                              story.publishedAt || story.createdAt || ""
+                            )}
                           </span>
                         </div>
 
@@ -439,9 +482,7 @@ const Stories: React.FC = () => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center text-sm text-gray-500">
                             <User className="mr-1 h-4 w-4" />
-                            {`${story.firstName || ""} ${
-                              story.lastName || ""
-                            }`.trim() || "Unknown Author"}
+                            {story.authorName || "Unknown Author"}
                           </div>
                           <div className="flex items-center space-x-4 text-sm text-gray-500">
                             <span className="flex items-center">

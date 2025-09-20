@@ -124,7 +124,6 @@ const AdminAddCourse: React.FC = () => {
     // Debug authentication state
     console.log("Current user:", user);
     console.log("User role:", user?.role);
-    console.log("Token in localStorage:", localStorage.getItem("token"));
 
     // Check authentication
     if (!user || user.role !== "admin") {
@@ -201,21 +200,8 @@ const AdminAddCourse: React.FC = () => {
                 : "Not logged in"}
             </p>
             <p className="text-sm text-yellow-700 dark:text-yellow-300 mb-2">
-              Token: {localStorage.getItem("token") ? "Present" : "Missing"}
+              Firebase Auth: {user ? "Authenticated" : "Not authenticated"}
             </p>
-            <button
-              onClick={() => {
-                // Set a test token (replace with actual token from login)
-                localStorage.setItem(
-                  "token",
-                  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJhZG1pbkBrbW1lZGlhLmNvbSIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc1NTcwNTIwOSwiZXhwIjoxNzU1NzkxNjA5fQ.6YUSfR05slkroMXJcIPcPA0oGezc90huMqxkKT-5q3k"
-                );
-                window.location.reload();
-              }}
-              className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-            >
-              Set Test Token
-            </button>
             <button
               onClick={async () => {
                 try {

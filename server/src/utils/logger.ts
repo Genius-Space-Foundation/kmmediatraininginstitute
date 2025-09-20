@@ -12,7 +12,7 @@ class Logger {
 
   constructor() {
     this.logLevel =
-      config.nodeEnv === "production" ? LogLevel.INFO : LogLevel.DEBUG;
+      config.server.nodeEnv === "production" ? LogLevel.INFO : LogLevel.DEBUG;
   }
 
   private formatMessage(level: string, message: string, meta?: any): string {

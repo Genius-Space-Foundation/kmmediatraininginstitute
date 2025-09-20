@@ -3,6 +3,7 @@ import { BaseController } from "./BaseController";
 import { courseService } from "../services/CourseService";
 import { CourseRequest, AuthRequest } from "../types";
 import { logger } from "../utils/logger";
+import { withCache, invalidate } from "../utils/cache";
 
 export class CourseController extends BaseController {
   async createCourse(req: AuthRequest, res: Response, next: NextFunction) {
@@ -11,7 +12,9 @@ export class CourseController extends BaseController {
       const courseData: CourseRequest = req.body;
       const trainerId =
         req.user?.role === "trainer" ? this.getUserId(req) : undefined;
-      return await courseService.createCourse(courseData, trainerId);
+      const created = await courseService.createCourse(courseData, trainerId);
+      await invalidate("courses:list:*");
+      return created;
     });
   }
 
@@ -26,7 +29,13 @@ export class CourseController extends BaseController {
     await this.handleRequest(req, res, next, async () => {
       const { page, limit } = this.getPaginationParams(req);
       const category = req.query.category as string;
-      return await courseService.getAllCourses(page, limit, category);
+      const key = `courses:list:page=${page}:limit=${limit}:category=${
+        category || "all"
+      }`;
+      const cachedCall = withCache(key, 60, async () => {
+        return await courseService.getAllCourses(page, limit, category);
+      });
+      return await cachedCall();
     });
   }
 
@@ -35,7 +44,9 @@ export class CourseController extends BaseController {
       this.requireRole(req, ["admin", "trainer"]);
       const courseId = parseInt(req.params.id);
       const updateData: Partial<CourseRequest> = req.body;
-      return await courseService.updateCourse(courseId, updateData);
+      const updated = await courseService.updateCourse(courseId, updateData);
+      await invalidate("courses:list:*");
+      return updated;
     });
   }
 
@@ -44,6 +55,7 @@ export class CourseController extends BaseController {
       this.requireRole(req, ["admin"]);
       const courseId = parseInt(req.params.id);
       await courseService.deleteCourse(courseId);
+      await invalidate("courses:list:*");
       return { message: "Course deleted successfully" };
     });
   }
@@ -69,7 +81,9 @@ export class CourseController extends BaseController {
     await this.handleRequest(req, res, next, async () => {
       this.requireRole(req, ["admin"]);
       const courseId = parseInt(req.params.id);
-      return await courseService.toggleCourseStatus(courseId);
+      const result = await courseService.toggleCourseStatus(courseId);
+      await invalidate("courses:list:*");
+      return result;
     });
   }
 }

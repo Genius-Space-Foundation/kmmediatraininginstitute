@@ -1,6 +1,7 @@
 import axios, { AxiosError, AxiosResponse } from "axios";
 import { toast } from "react-hot-toast";
 import { Assignment, StudentSubmission } from "../types/assignments";
+import { auth } from "../config/firebase";
 
 // Type definitions for API responses
 export interface Pagination {
@@ -69,7 +70,7 @@ export interface StoryResponse {
   liked: boolean;
 }
 
-export interface FeaturedStoriesResponse extends Array<Story> { }
+export interface FeaturedStoriesResponse extends Array<Story> {}
 
 export interface CommentsResponse {
   comments: Comment[];
@@ -100,21 +101,22 @@ declare module "axios" {
   }
 }
 
-// Request interceptor to add auth token and handle requests
+// Request interceptor to add Firebase Auth token and handle requests
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("token");
-    console.log("API Request - Token from localStorage:", token);
+  async (config) => {
     console.log("API Request - URL:", config.url);
 
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-      console.log(
-        "API Request - Authorization header set:",
-        config.headers.Authorization
-      );
+    // Get Firebase Auth token
+    if (auth.currentUser) {
+      try {
+        const token = await auth.currentUser.getIdToken();
+        config.headers.Authorization = `Bearer ${token}`;
+        console.log("API Request - Firebase token set");
+      } catch (error) {
+        console.error("Error getting Firebase token:", error);
+      }
     } else {
-      console.log("API Request - No token found in localStorage");
+      console.log("API Request - No authenticated user");
     }
 
     // Add request timestamp for debugging
@@ -128,7 +130,7 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor for error handling and token refresh
+// Response interceptor for error handling
 api.interceptors.response.use(
   (response: AxiosResponse) => {
     // Log response time for performance monitoring
@@ -148,30 +150,42 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as any;
 
+    // Handle connection refused errors (backend not running)
+    if (
+      error.code === "ERR_CONNECTION_REFUSED" ||
+      error.message?.includes("ERR_CONNECTION_REFUSED")
+    ) {
+      console.warn(
+        "Backend server not running, using mock data for:",
+        originalRequest.url
+      );
+      const mockData = getMockDataForEndpoint(originalRequest.url);
+      if (mockData) {
+        return {
+          data: mockData,
+          status: 200,
+          statusText: "OK",
+          config: originalRequest,
+        };
+      }
+    }
+
     // Handle 401 errors (unauthorized)
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
-        // Try to refresh the token
-        const refreshToken = localStorage.getItem("refreshToken");
-        if (refreshToken) {
-          const response = await axios.post("/api/auth/refresh", {
-            refreshToken,
-          });
-
-          const { token } = response.data.data;
-          localStorage.setItem("token", token);
-          api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+        // Try to refresh the Firebase token
+        if (auth.currentUser) {
+          const token = await auth.currentUser.getIdToken(true); // Force refresh
           originalRequest.headers["Authorization"] = `Bearer ${token}`;
 
           // Retry the original request
           return api(originalRequest);
         }
       } catch (refreshError) {
-        // Refresh failed, logout user
-        localStorage.removeItem("token");
-        localStorage.removeItem("refreshToken");
+        // Refresh failed, redirect to login
+        console.error("Token refresh failed:", refreshError);
         window.location.href = "/login";
         toast.error("Session expired. Please login again.");
         return Promise.reject(refreshError);
@@ -387,18 +401,149 @@ export const assignmentsApi = {
     apiService.get<Assignment[]>(`/assignments/course/${courseId}`),
 
   getSubmissionsForAssignment: (assignmentId: number) =>
-    apiService.get<StudentSubmission[]>(`/assignments/${assignmentId}/submissions`),
+    apiService.get<StudentSubmission[]>(
+      `/assignments/${assignmentId}/submissions`
+    ),
 
-  gradeSubmission: (submissionId: number, data: { grade: number; feedback?: string }) =>
-    apiService.post<StudentSubmission>(`/assignments/submissions/${submissionId}/grade`, data),
+  gradeSubmission: (
+    submissionId: number,
+    data: { grade: number; feedback?: string }
+  ) =>
+    apiService.post<StudentSubmission>(
+      `/assignments/submissions/${submissionId}/grade`,
+      data
+    ),
 
   // Student functions
-  submitAssignment: (assignmentId: number, data: { fileUrl: string; fileName: string }) =>
-    apiService.post<StudentSubmission>(`/assignments/${assignmentId}/submit`, data),
+  submitAssignment: (
+    assignmentId: number,
+    data: { fileUrl: string; fileName: string }
+  ) =>
+    apiService.post<StudentSubmission>(
+      `/assignments/${assignmentId}/submit`,
+      data
+    ),
 
   getMySubmissions: () =>
     apiService.get<StudentSubmission[]>("/assignments/my-submissions"),
 };
+
+// Capstone Projects API functions
+export const capstoneApi = {
+  // Get capstone projects for a course
+  getCapstoneProjects: (courseId: number): Promise<any[]> =>
+    apiService.get<any[]>(`/capstone-projects/course/${courseId}`),
+
+  // Get submissions for a capstone project
+  getCapstoneSubmissions: (projectId: number): Promise<any[]> =>
+    apiService.get<any[]>(`/capstone-projects/${projectId}/submissions`),
+
+  // Create a new capstone project
+  createCapstoneProject: (data: any): Promise<any> =>
+    apiService.post<any>("/capstone-projects", data),
+
+  // Submit capstone project
+  submitCapstoneProject: (data: any): Promise<any> =>
+    apiService.post<any>("/capstone-projects/submit", data),
+
+  // Grade capstone submission
+  gradeCapstoneSubmission: (
+    submissionId: number,
+    data: { grade: number; feedback?: string }
+  ): Promise<any> =>
+    apiService.put<any>(
+      `/capstone-projects/submissions/${submissionId}/grade`,
+      data
+    ),
+};
+
+// Industrial Attachments API functions
+export const industrialApi = {
+  // Get industrial attachment opportunities for a course
+  getIndustrialOpportunities: (courseId: number): Promise<any[]> =>
+    apiService.get<any[]>(`/industrial-attachments/course/${courseId}`),
+
+  // Get student applications
+  getStudentApplications: (): Promise<any[]> =>
+    apiService.get<any[]>("/industrial-attachments/student/applications"),
+
+  // Get applications for an opportunity
+  getOpportunityApplications: (opportunityId: number): Promise<any[]> =>
+    apiService.get<any[]>(
+      `/industrial-attachments/${opportunityId}/applications`
+    ),
+
+  // Create industrial attachment opportunity
+  createIndustrialOpportunity: (data: any): Promise<any> =>
+    apiService.post<any>("/industrial-attachments", data),
+
+  // Apply for industrial attachment
+  applyForIndustrialAttachment: (data: any): Promise<any> =>
+    apiService.post<any>("/industrial-attachments/apply", data),
+
+  // Update application status
+  updateApplicationStatus: (
+    applicationId: number,
+    data: { status: string; feedback?: string }
+  ): Promise<any> =>
+    apiService.put<any>(
+      `/industrial-attachments/applications/${applicationId}/status`,
+      data
+    ),
+};
+
+// Mock data for when backend is not available
+function getMockDataForEndpoint(url: string) {
+  if (url?.includes("/courses")) {
+    return {
+      data: {
+        courses: [
+          {
+            id: "1",
+            title: "Web Development Fundamentals",
+            description:
+              "Learn the basics of web development with HTML, CSS, and JavaScript",
+            instructor: "John Doe",
+            duration: "8 weeks",
+            price: 299,
+            image:
+              "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=500",
+            status: "active",
+          },
+          {
+            id: "2",
+            title: "Data Science with Python",
+            description:
+              "Master data analysis and machine learning with Python",
+            instructor: "Jane Smith",
+            duration: "12 weeks",
+            price: 399,
+            image:
+              "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=500",
+            status: "active",
+          },
+        ],
+      },
+    };
+  }
+
+  if (url?.includes("/stories/featured")) {
+    return [
+      {
+        id: "1",
+        title: "From Zero to Hero: Sarah's Web Dev Journey",
+        content:
+          "Sarah started with no coding experience and landed her dream job...",
+        author: "Sarah Wilson",
+        image:
+          "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=300",
+        featured: true,
+      },
+    ];
+  }
+
+  return null;
+}
 
 // Export statement at the end
 export { api };

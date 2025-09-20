@@ -1,11 +1,13 @@
 import { Request } from "express";
 
 export interface User {
-  id: number;
+  id: string;
   email: string;
   password: string;
   firstName: string;
   lastName: string;
+  fullName?: string;
+  displayName?: string;
   role: "user" | "admin" | "trainer";
   phone?: string;
   address?: string;
@@ -13,12 +15,24 @@ export interface User {
   bio?: string;
   experience?: string;
   profileImage?: string;
-  createdAt: string;
-  updatedAt: string;
+  isActive?: boolean;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
+export interface UserUpdateRequest {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  address?: string;
+  role?: "user" | "admin" | "trainer";
+  fullName?: string;
+  displayName?: string;
+  profileImage?: string;
 }
 
 export interface Course {
-  id: number;
+  id: string;
   name: string;
   description: string;
   excerpt?: string;
@@ -27,14 +41,15 @@ export interface Course {
   maxStudents: number;
   level?: string;
   category: string;
-  instructorId?: number;
+  instructorId?: string;
   isActive: boolean;
+  isFeatured?: boolean;
   featuredImage?: string;
   syllabus?: string;
   requirements?: string;
   learningOutcomes?: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: Date | string;
+  updatedAt: Date | string;
 }
 
 export interface Registration {
@@ -55,7 +70,7 @@ export interface RegistrationWithDetails extends Registration {
 
 export interface AuthRequest extends Request {
   user?: {
-    id: number;
+    id: string;
     email: string;
     role: string;
   };
@@ -63,7 +78,7 @@ export interface AuthRequest extends Request {
 
 export interface AuthenticatedRequest extends Request {
   user: {
-    id: number;
+    id: string;
     email: string;
     role: string;
   };
@@ -488,3 +503,7 @@ export interface CourseAccess {
   accessGrantedAt?: string;
   accessGrantedBy?: number;
 }
+
+// Export new entity and DTO types
+export * from "./entities";
+export * from "./dtos";

@@ -4,7 +4,7 @@ import { AuthRequest } from "../types";
 import { config } from "../config";
 
 export interface JWTPayload {
-  id: number;
+  id: string;
   email: string;
   role: string;
 }
@@ -46,7 +46,11 @@ export const authenticateToken = (
     });
   }
 
-  req.user = payload;
+  req.user = {
+    id: payload.id,
+    email: payload.email,
+    role: payload.role,
+  };
   next();
 };
 

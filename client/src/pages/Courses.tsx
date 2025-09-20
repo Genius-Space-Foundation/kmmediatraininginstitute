@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../utils/api";
-import toast from "react-hot-toast";
+import CourseService, { Course } from "../services/courseService";
 import {
   Search,
   BookOpen,
@@ -16,31 +16,14 @@ import {
   Laptop,
   Camera,
   Hammer,
-  Sparkles,
-  CheckCircle,
   X,
   Grid,
   List,
   ChevronDown,
   ChevronUp,
   Zap,
-  Target,
-  Globe,
-  Shield,
 } from "lucide-react";
 import Footer from "../components/Footer";
-
-interface Course {
-  id: number;
-  name: string;
-  description: string;
-  duration: string;
-  price: number;
-  maxStudents: number;
-  isActive: boolean;
-  createdAt: string;
-  category: "Tech" | "Media" | "Vocational";
-}
 
 const Courses: React.FC = () => {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -52,26 +35,152 @@ const Courses: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
-  const fetchCourses = async () => {
+  const fetchCourses = useCallback(async () => {
     try {
-      const response = await api.get("/courses");
-      setCourses(response.data.data.courses);
+      // Fetch active courses from Firestore
+      const coursesResult = await CourseService.getActiveCourses();
+      const coursesData = coursesResult || [];
+
+      // If no courses are returned, use sample courses
+      if (!coursesData || coursesData.length === 0) {
+        console.log("No courses found, using sample courses");
+        setCourses(getSampleCourses());
+      } else {
+        setCourses(coursesData);
+      }
     } catch (error) {
       console.error("Error fetching courses:", error);
-      toast.error("Failed to fetch courses");
+      console.log("Firestore error, using sample courses");
+      setCourses(getSampleCourses());
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Set up real-time subscription for courses
+  useEffect(() => {
+    const unsubscribe = CourseService.subscribeToAllCourses(
+      (courses) => {
+        const activeCourses = courses.filter((course) => course.isActive);
+        setCourses(activeCourses);
+        setLoading(false);
+      },
+      undefined, // category
+      true // isActive
+    );
+
+    console.log("Real-time courses subscription set up");
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  const getSampleCourses = (): Course[] => [
+    {
+      id: "sample-1",
+      name: "Web Development Fundamentals",
+      description:
+        "Learn the basics of web development including HTML, CSS, and JavaScript. Perfect for beginners who want to start their journey in web development.",
+      excerpt:
+        "Master the fundamentals of web development with HTML, CSS, and JavaScript.",
+      duration: "8 weeks",
+      price: 299,
+      maxStudents: 25,
+      level: "beginner",
+      category: "Tech",
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "sample-2",
+      name: "Digital Marketing Mastery",
+      description:
+        "Comprehensive digital marketing course covering SEO, social media marketing, content marketing, and analytics. Learn to create effective digital marketing campaigns.",
+      excerpt:
+        "Comprehensive digital marketing course covering SEO, social media, and analytics.",
+      duration: "6 weeks",
+      price: 199,
+      maxStudents: 30,
+      level: "intermediate",
+      category: "Media",
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "sample-3",
+      name: "Graphic Design Essentials",
+      description:
+        "Learn professional graphic design principles, tools, and techniques. Create stunning visuals for print and digital media using industry-standard software.",
+      excerpt:
+        "Learn professional graphic design principles and create stunning visuals.",
+      duration: "10 weeks",
+      price: 399,
+      maxStudents: 20,
+      level: "beginner",
+      category: "Media",
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "sample-4",
+      name: "Mobile App Development",
+      description:
+        "Build native and cross-platform mobile applications using React Native. Learn to create apps for both iOS and Android platforms.",
+      excerpt:
+        "Build native and cross-platform mobile applications using React Native.",
+      duration: "12 weeks",
+      price: 599,
+      maxStudents: 15,
+      level: "advanced",
+      category: "Tech",
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "sample-5",
+      name: "Photography & Videography",
+      description:
+        "Professional photography and videography course covering camera techniques, lighting, composition, and post-production editing.",
+      excerpt:
+        "Professional photography and videography course covering all essential techniques.",
+      duration: "8 weeks",
+      price: 349,
+      maxStudents: 18,
+      level: "intermediate",
+      category: "Media",
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "sample-6",
+      name: "Data Science & Analytics",
+      description:
+        "Learn data analysis, visualization, and machine learning using Python and popular data science libraries. Work with real datasets and build predictive models.",
+      excerpt:
+        "Learn data analysis, visualization, and machine learning using Python.",
+      duration: "14 weeks",
+      price: 799,
+      maxStudents: 12,
+      level: "advanced",
+      category: "Tech",
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    },
+  ];
 
   const filterCourses = useCallback(() => {
-    let filtered = courses.filter((course) => course.isActive);
+    let filtered = courses.filter(
+      (course) => course.isActive === true || course.status === "active"
+    );
 
     // Search filter
     if (searchTerm) {
       filtered = filtered.filter(
         (course) =>
-          course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (course.name || "")
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
           course.description.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
@@ -98,7 +207,7 @@ const Courses: React.FC = () => {
     filtered.sort((a, b) => {
       switch (sortBy) {
         case "name":
-          return a.name.localeCompare(b.name);
+          return (a.name || "").localeCompare(b.name || "");
         case "price-low":
           return a.price - b.price;
         case "price-high":
@@ -107,7 +216,8 @@ const Courses: React.FC = () => {
           return a.duration.localeCompare(b.duration);
         case "newest":
           return (
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            new Date(b.createdAt || 0).getTime() -
+            new Date(a.createdAt || 0).getTime()
           );
         default:
           return 0;
@@ -157,7 +267,7 @@ const Courses: React.FC = () => {
 
   useEffect(() => {
     fetchCourses();
-  }, []);
+  }, [fetchCourses]);
 
   useEffect(() => {
     filterCourses();
@@ -258,7 +368,11 @@ const Courses: React.FC = () => {
           <div className="grid grid-cols-3 gap-8 max-w-2xl mx-auto">
             <div className="text-center">
               <div className="text-2xl font-bold text-primary">
-                {courses.filter((c) => c.isActive).length}
+                {
+                  courses.filter(
+                    (c) => c.isActive === true || c.status === "active"
+                  ).length
+                }
               </div>
               <div className="text-sm text-gray-600">Available Courses</div>
             </div>
@@ -451,7 +565,7 @@ const Courses: React.FC = () => {
                         </div>
                         <div className="text-right">
                           <div className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                            ${course.price}
+                            GHC{course.price}
                           </div>
                           <div
                             className={`text-xs px-3 py-1.5 rounded-full font-medium ${priceCategory.color}`}
@@ -510,7 +624,9 @@ const Courses: React.FC = () => {
                           </div>
                         </div>
                         <div className="text-xs text-gray-500">
-                          {new Date(course.createdAt).toLocaleDateString()}
+                          {course.createdAt
+                            ? new Date(course.createdAt).toLocaleDateString()
+                            : "No date"}
                         </div>
                       </div>
 

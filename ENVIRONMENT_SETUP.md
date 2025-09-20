@@ -1,291 +1,158 @@
 # Environment Setup Guide
 
-This guide will help you set up the environment variables for the KM Media Training Institute application.
+This guide explains how to set up the environment variables for the Firebase-migrated KM Media application.
 
-## 🚀 Quick Start
+## Backend Environment Variables (server/.env)
 
-### 1. Automatic Setup (Recommended)
+Copy `server/env.example` to `server/.env` and update the following variables:
 
-Run the setup script to automatically create your `.env` file:
-
-```bash
-# Make sure you're in the project root directory
-./scripts/setup-env.sh
-```
-
-This script will:
-
-- ✅ Copy the template to `.env`
-- ✅ Generate secure JWT and session secrets
-- ✅ Create necessary directories
-- ✅ Set proper file permissions
-
-### 2. Manual Setup
-
-If you prefer to set up manually:
+### Required Firebase Configuration
 
 ```bash
-# Copy the template
-cp env.example .env
-
-# Edit the file with your preferred editor
-nano .env
-# or
-code .env
+FIREBASE_PROJECT_ID=your-firebase-project-id
+FIREBASE_PRIVATE_KEY_ID=your-private-key-id
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-----END PRIVATE KEY-----\n"
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com
+FIREBASE_CLIENT_ID=your-client-id
+FIREBASE_DATABASE_URL=https://your-project.firebaseio.com
+FIREBASE_STORAGE_BUCKET=your-project.appspot.com
 ```
 
-## 📋 Essential Environment Variables
+### How to Get Firebase Credentials
 
-### Required Variables
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Select your project
+3. Go to Project Settings → Service Accounts
+4. Click "Generate new private key"
+5. Download the JSON file
+6. Extract the values and add them to your `.env` file
 
-These variables must be configured for the application to work:
+### Server Configuration
 
-```env
-# Server Configuration
+```bash
 PORT=5000
 NODE_ENV=development
-
-# JWT Authentication
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 JWT_EXPIRES_IN=24h
-
-# Database
-DB_PATH=./database.sqlite
-
-# Rate Limiting
-RATE_LIMIT_WINDOW_MS=900000
-RATE_LIMIT_MAX_REQUESTS=100
-
-# Client Configuration
-REACT_APP_API_URL=http://localhost:5000/api
 ```
 
-### Domain Configuration
-
-Update these with your actual domain:
-
-```env
-DOMAIN=kmmediatraininginstitute.com
-WWW_DOMAIN=www.kmmediatraininginstitute.com
-API_DOMAIN=api.kmmediatraininginstitute.com
-STAGING_DOMAIN=staging.kmmediatraininginstitute.com
-```
-
-## 🔧 Environment-Specific Configurations
-
-### Development Environment
-
-```env
-NODE_ENV=development
-DEBUG_ENABLED=true
-LOG_LEVEL=debug
-REACT_APP_API_URL=http://localhost:5000/api
-```
-
-### Staging Environment
-
-```env
-NODE_ENV=staging
-DEBUG_ENABLED=true
-LOG_LEVEL=info
-REACT_APP_API_URL=http://api-staging.kmmediatraininginstitute.com
-```
-
-### Production Environment
-
-```env
-NODE_ENV=production
-DEBUG_ENABLED=false
-LOG_LEVEL=warn
-REACT_APP_API_URL=https://api.kmmediatraininginstitute.com
-EMAIL_ENABLED=true
-```
-
-## 🔒 Security Configuration
-
-### JWT Secrets
-
-Generate secure secrets for production:
+### CORS Configuration
 
 ```bash
-# Generate JWT secret
-openssl rand -base64 32
-
-# Generate session secret
-openssl rand -base64 32
+CORS_ORIGIN_DEV=http://localhost:3000,http://localhost:3001
+CORS_ORIGIN_PROD=https://kmmediatraininginstitute.com,https://www.kmmediatraininginstitute.com
 ```
 
-### Password Policy
+## Frontend Environment Variables (client/.env)
 
-Configure password requirements:
+Copy `client/env.firebase.example` to `client/.env` and update the following variables:
 
-```env
-PASSWORD_MIN_LENGTH=8
-PASSWORD_REQUIRE_UPPERCASE=true
-PASSWORD_REQUIRE_LOWERCASE=true
-PASSWORD_REQUIRE_NUMBERS=true
-PASSWORD_REQUIRE_SPECIAL_CHARS=true
-```
-
-## 📧 Email Configuration (Optional)
-
-Enable email functionality for notifications:
-
-```env
-EMAIL_ENABLED=true
-EMAIL_SERVICE=smtp
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_SECURE=true
-EMAIL_USER=your-email@gmail.com
-EMAIL_PASSWORD=your-app-password
-EMAIL_FROM=noreply@kmmediatraininginstitute.com
-```
-
-## 📁 Directory Structure
-
-The setup script creates these directories:
-
-```
-project-root/
-├── logs/           # Application logs
-├── uploads/        # File uploads
-│   └── temp/       # Temporary uploads
-├── backups/        # Database backups
-└── migrations/     # Database migrations
-```
-
-## 🔍 Validation
-
-### Check Environment Variables
-
-Verify your configuration:
+### Required Firebase Configuration
 
 ```bash
-# Check if .env file exists
-ls -la .env
-
-# Validate environment variables
-node -e "
-  require('dotenv').config();
-  console.log('Environment loaded successfully');
-  console.log('NODE_ENV:', process.env.NODE_ENV);
-  console.log('PORT:', process.env.PORT);
-  console.log('JWT_SECRET:', process.env.JWT_SECRET ? 'Set' : 'Not set');
-"
+REACT_APP_FIREBASE_API_KEY=your-api-key
+REACT_APP_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
+REACT_APP_FIREBASE_PROJECT_ID=your-project-id
+REACT_APP_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
+REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+REACT_APP_FIREBASE_APP_ID=your-app-id
+REACT_APP_FIREBASE_MEASUREMENT_ID=your-measurement-id
 ```
 
-### Test Database Connection
+### How to Get Frontend Firebase Credentials
+
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Select your project
+3. Go to Project Settings → General
+4. Scroll down to "Your apps" section
+5. Click on the web app icon (</>) to add a web app
+6. Copy the config values to your `.env` file
+
+### API Configuration
 
 ```bash
-# Test database configuration
-node -e "
-  require('dotenv').config();
-  const sqlite3 = require('sqlite3').verbose();
-  const db = new sqlite3.Database(process.env.DB_PATH);
-  console.log('Database connection test:', db ? 'Success' : 'Failed');
-  db.close();
-"
+REACT_APP_API_URL=http://localhost:3003/api
+REACT_APP_ENV=development
+REACT_APP_DEBUG=true
 ```
 
-## 🚨 Security Best Practices
+## Firestore Security Rules
 
-### 1. Never Commit .env Files
+Update your Firestore security rules in the Firebase Console:
 
-Ensure `.env` is in your `.gitignore`:
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow read/write access to authenticated users
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
 
-```bash
-# Check if .env is ignored
-git check-ignore .env
+    // Public read access for courses
+    match /courses/{document} {
+      allow read: if resource.data.isActive == true;
+      allow write: if request.auth != null && request.auth.token.role in ['admin', 'trainer'];
+    }
+
+    // User management
+    match /users/{userId} {
+      allow read, write: if request.auth != null &&
+        (request.auth.uid == userId || request.auth.token.role == 'admin');
+    }
+  }
+}
 ```
 
-### 2. Use Different Secrets for Each Environment
+## Testing the Setup
 
-- **Development**: Use simple secrets for local development
-- **Staging**: Use different secrets from production
-- **Production**: Use strong, unique secrets
+1. Start the backend server:
 
-### 3. Rotate Secrets Regularly
+   ```bash
+   cd server
+   npm run dev
+   ```
 
-Update JWT and session secrets periodically:
+2. Start the frontend:
 
-```bash
-# Generate new secrets
-openssl rand -base64 32
-```
+   ```bash
+   cd client
+   npm start
+   ```
 
-### 4. Limit File Permissions
+3. Test the connection:
+   - Backend: http://localhost:3003/api/health
+   - Frontend: http://localhost:3000
 
-```bash
-# Set restrictive permissions on .env
-chmod 600 .env
-```
-
-## 🔄 Environment Updates
-
-### Adding New Variables
-
-1. Add to `env.example`
-2. Update this documentation
-3. Update application code to use the new variable
-
-### Updating Existing Variables
-
-1. Update the variable in `.env`
-2. Restart the application
-3. Test the change
-
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
-1. **Environment not loading**
+1. **Permission Denied Error**: Make sure Firestore rules allow read/write access
+2. **Connection Timeout**: Check if Firebase project ID and credentials are correct
+3. **CORS Issues**: Verify CORS_ORIGIN_DEV includes the frontend URL
+4. **Port Conflicts**: Make sure ports 3000 (frontend) and 3003 (backend) are available
 
-   ```bash
-   # Check if dotenv is installed
-   npm list dotenv
+### Validation Scripts
 
-   # Verify .env file exists
-   ls -la .env
-   ```
-
-2. **Permission denied**
-
-   ```bash
-   # Fix file permissions
-   chmod 600 .env
-   ```
-
-3. **Invalid variable format**
-   ```bash
-   # Check for syntax errors
-   grep -E "^[A-Z_]+=" .env
-   ```
-
-### Debug Commands
+Run the validation scripts to check your setup:
 
 ```bash
-# View all environment variables
-env | grep -E "(NODE_ENV|PORT|JWT|DB)"
+# Backend validation
+cd server
+node scripts/validate-firebase-config.js
 
-# Check specific variable
-echo $NODE_ENV
-
-# Validate .env syntax
-grep -v "^#" .env | grep -v "^$"
+# Test Firebase connection
+node test-firebase-connection.js
 ```
 
-## 📞 Support
+## Production Deployment
 
-If you encounter issues:
+For production deployment:
 
-1. Check the troubleshooting section
-2. Verify file permissions
-3. Ensure all required variables are set
-4. Test with the validation commands above
-
----
-
-**Last Updated**: December 2024
-**Version**: 1.0.0
+1. Update `NODE_ENV=production`
+2. Use production Firebase project
+3. Set up proper Firestore security rules
+4. Configure CORS for production domains
+5. Use environment-specific JWT secrets
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Deployment script for KM Media Course Registration System
-# Usage: ./scripts/deploy.sh [environment] [version]
+# KM Media Training Institute - Deployment Script
+# This script handles deployment to different environments
 
 set -e
 
@@ -9,103 +9,193 @@ set -e
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Default values
+# Configuration
 ENVIRONMENT=${1:-staging}
 VERSION=${2:-latest}
+DOCKER_REGISTRY=${DOCKER_REGISTRY:-ghcr.io}
+IMAGE_PREFIX=${IMAGE_PREFIX:-kmmedia}
 
-# Configuration
-REGISTRY="ghcr.io"
-IMAGE_NAME="kmmedia/kmmedia-course-registration"
-
-echo -e "${GREEN}🚀 Starting deployment to ${ENVIRONMENT} environment${NC}"
-
-# Function to check if command exists
-command_exists() {
-    command -v "$1" >/dev/null 2>&1
+# Functions
+log() {
+    echo -e "${BLUE}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} $1"
 }
 
-# Check prerequisites
-echo -e "${YELLOW}📋 Checking prerequisites...${NC}"
+success() {
+    echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S')] ✅${NC} $1"
+}
 
-if ! command_exists docker; then
-    echo -e "${RED}❌ Docker is not installed${NC}"
+warning() {
+    echo -e "${YELLOW}[$(date +'%Y-%m-%d %H:%M:%S')] ⚠️${NC} $1"
+}
+
+error() {
+    echo -e "${RED}[$(date +'%Y-%m-%d %H:%M:%S')] ❌${NC} $1"
     exit 1
-fi
-
-if ! command_exists docker-compose; then
-    echo -e "${RED}❌ Docker Compose is not installed${NC}"
-    exit 1
-fi
-
-echo -e "${GREEN}✅ Prerequisites check passed${NC}"
-
-# Function to deploy to different environments
-deploy_staging() {
-    echo -e "${YELLOW}🏗️  Deploying to staging...${NC}"
-    
-    # Pull latest images
-    docker-compose -f docker-compose.staging.yml pull
-    
-    # Deploy with new images
-    docker-compose -f docker-compose.staging.yml up -d
-    
-    echo -e "${GREEN}✅ Staging deployment completed${NC}"
 }
 
-deploy_production() {
-    echo -e "${YELLOW}🏗️  Deploying to production...${NC}"
+# Check if required tools are installed
+check_dependencies() {
+    log "Checking dependencies..."
     
-    # Pull latest images
-    docker-compose -f docker-compose.production.yml pull
+    if ! command -v docker &> /dev/null; then
+        error "Docker is not installed or not in PATH"
+    fi
     
-    # Deploy with new images
-    docker-compose -f docker-compose.production.yml up -d
+    if ! command -v docker-compose &> /dev/null; then
+        error "Docker Compose is not installed or not in PATH"
+    fi
     
-    echo -e "${GREEN}✅ Production deployment completed${NC}"
+    success "All dependencies are available"
 }
 
-deploy_local() {
-    echo -e "${YELLOW}🏗️  Deploying locally...${NC}"
+# Build Docker images
+build_images() {
+    log "Building Docker images..."
     
-    # Build and start services
-    docker-compose up -d --build
+    # Build server image
+    log "Building server image..."
+    docker build -f server/Dockerfile.optimized -t ${DOCKER_REGISTRY}/${IMAGE_PREFIX}-server:${VERSION} ./server
     
-    echo -e "${GREEN}✅ Local deployment completed${NC}"
+    # Build client image
+    log "Building client image..."
+    docker build -f client/Dockerfile.optimized -t ${DOCKER_REGISTRY}/${IMAGE_PREFIX}-client:${VERSION} ./client
+    
+    success "Images built successfully"
 }
 
-# Main deployment logic
-case $ENVIRONMENT in
-    "local")
-        deploy_local
-        ;;
-    "staging")
-        deploy_staging
-        ;;
-    "production")
-        deploy_production
-        ;;
-    *)
-        echo -e "${RED}❌ Invalid environment: $ENVIRONMENT${NC}"
-        echo "Valid environments: local, staging, production"
-        exit 1
-        ;;
-esac
+# Push images to registry
+push_images() {
+    if [ "$ENVIRONMENT" = "production" ]; then
+        log "Pushing images to registry..."
+        
+        docker push ${DOCKER_REGISTRY}/${IMAGE_PREFIX}-server:${VERSION}
+        docker push ${DOCKER_REGISTRY}/${IMAGE_PREFIX}-client:${VERSION}
+        
+        success "Images pushed to registry"
+    else
+        warning "Skipping image push for non-production environment"
+    fi
+}
+
+# Deploy to environment
+deploy() {
+    log "Deploying to ${ENVIRONMENT} environment..."
+    
+    # Set environment variables
+    export ENVIRONMENT=${ENVIRONMENT}
+    export VERSION=${VERSION}
+    export DOCKER_REGISTRY=${DOCKER_REGISTRY}
+    export IMAGE_PREFIX=${IMAGE_PREFIX}
+    
+    # Choose appropriate compose file
+    if [ "$ENVIRONMENT" = "production" ]; then
+        COMPOSE_FILE="docker-compose.production.yml"
+    elif [ "$ENVIRONMENT" = "staging" ]; then
+        COMPOSE_FILE="docker-compose.staging.yml"
+    else
+        COMPOSE_FILE="docker-compose.yml"
+    fi
+    
+    # Check if compose file exists
+    if [ ! -f "$COMPOSE_FILE" ]; then
+        warning "Compose file $COMPOSE_FILE not found, using default docker-compose.yml"
+        COMPOSE_FILE="docker-compose.yml"
+    fi
+    
+    # Deploy with monitoring if requested
+    if [ "$3" = "with-monitoring" ]; then
+        log "Deploying with monitoring stack..."
+        docker-compose -f $COMPOSE_FILE -f docker-compose.monitoring.yml up -d
+    else
+        log "Deploying without monitoring..."
+        docker-compose -f $COMPOSE_FILE up -d
+    fi
+    
+    success "Deployment completed"
+}
 
 # Health check
-echo -e "${YELLOW}🏥 Running health checks...${NC}"
-sleep 10
+health_check() {
+    log "Performing health check..."
+    
+    # Wait for services to be ready
+    sleep 30
+    
+    # Check server health
+    if curl -f http://localhost:3001/health > /dev/null 2>&1; then
+        success "Server is healthy"
+    else
+        error "Server health check failed"
+    fi
+    
+    # Check client health
+    if curl -f http://localhost/ > /dev/null 2>&1; then
+        success "Client is healthy"
+    else
+        error "Client health check failed"
+    fi
+    
+    success "All health checks passed"
+}
 
-# Check if services are running
-if docker-compose ps | grep -q "Up"; then
-    echo -e "${GREEN}✅ All services are running${NC}"
-else
-    echo -e "${RED}❌ Some services failed to start${NC}"
-    docker-compose ps
-    exit 1
-fi
+# Rollback function
+rollback() {
+    log "Rolling back to previous version..."
+    
+    # Get previous version (this would need to be stored somewhere)
+    PREVIOUS_VERSION=${PREVIOUS_VERSION:-latest}
+    
+    export VERSION=${PREVIOUS_VERSION}
+    deploy
+    
+    success "Rollback completed"
+}
 
-echo -e "${GREEN}🎉 Deployment completed successfully!${NC}"
-echo -e "${YELLOW}📊 Check service status with: docker-compose ps${NC}"
-echo -e "${YELLOW}📋 View logs with: docker-compose logs -f${NC}"
+# Cleanup function
+cleanup() {
+    log "Cleaning up old images and containers..."
+    
+    # Remove unused images
+    docker image prune -f
+    
+    # Remove unused containers
+    docker container prune -f
+    
+    success "Cleanup completed"
+}
+
+# Main deployment flow
+main() {
+    log "Starting deployment process..."
+    log "Environment: ${ENVIRONMENT}"
+    log "Version: ${VERSION}"
+    log "Registry: ${DOCKER_REGISTRY}"
+    
+    check_dependencies
+    build_images
+    push_images
+    deploy
+    health_check
+    cleanup
+    
+    success "Deployment process completed successfully! 🚀"
+}
+
+# Handle script arguments
+case "${1:-}" in
+    "rollback")
+        rollback
+        ;;
+    "health")
+        health_check
+        ;;
+    "cleanup")
+        cleanup
+        ;;
+    *)
+        main
+        ;;
+esac
